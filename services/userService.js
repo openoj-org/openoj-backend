@@ -11,6 +11,7 @@ const {
   JWT_EXPIRED 
 } = require('../utils/constant');
 const { decode } = require('../utils/user-jwt');
+const nodemail = require('../utils/nodemailer');
 var allowregister = false; 
 var haveList = false;
 var fs = require("fs");
@@ -360,7 +361,7 @@ function prepare_mailcode(req, res, next) {
     var code = createSixNum();
     time = new Date().getTime()
     var mail = {
-      from: '<785820791@qq.com>',
+      from: '<zxbzxb20@163.com>',
       subject: '接受凭证',
       to: user_email,
       text: '用' + code + '作为你的验证码'//发送验证码
@@ -874,14 +875,14 @@ function untrust(req, res, next) {
             message: '用户不存在'
           })
         } else {
-          if(result[0].user_role > 1) {
+          if(result[0].user_role > 2) {
             res.json({ 
               code: CODE_SUCCESS, 
               success: true,
               message: '设置成功'
             })
-          } else if(result[0].user_role != 0) {
-            const modSql = `UPDATE users SET user_role = '${2}' WHERE user_id='${user_id}'`;
+          } else if(result[0].user_role === 2) {
+            const modSql = `UPDATE users SET user_role = '${3}' WHERE user_id='${user_id}'`;
             querySql(modSql)
             .then(user => {
               if (!user || user.length === 0) {
@@ -948,6 +949,8 @@ function createSixNum() {
 }
 
 module.exports = {
+  get_allow_register,
+  user_info,
   login,
   register,
   reset_password
