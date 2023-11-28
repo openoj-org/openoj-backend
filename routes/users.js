@@ -4,17 +4,6 @@ const { body } = require('express-validator');
 const service = require('../services/userService');
 
 
-const vaildator = [
-  body('username').isString().withMessage('用户名类型错误'),
-  body('password').isString().withMessage('密码类型错误')
-]
-
-// 重置密码校验
-const resetPwdVaildator = [
-  body('username').isString().withMessage('用户名类型错误'),
-  body('oldPassword').isString().withMessage('密码类型错误'),
-  body('newPassword').isString().withMessage('密码类型错误')
-]
 
 // 是否开放注册
 router.get('/user/get-allow-register', service.get_allow_register);
@@ -35,7 +24,7 @@ router.get('/user/mail-change-time', service.mail_changetime);
 router.get('/user/username-change-time', service.username_changetime);
 
 // 用户登录
-router.post('/user/login', vaildator, service.login);
+router.post('/user/login', service.login);
 
 // 退出登录
 router.post('/user/logout', service.logout);
@@ -44,7 +33,7 @@ router.post('/user/logout', service.logout);
 router.post('/user/allow-register', service.allow_register);
 
 // 用户注册
-router.post('/user/register', vaildator, service.register);
+router.post('/user/register', service.register);
 
 // 向邮箱发送验证码
 router.post('/user/prepare-mail-code', service.prepare_mailcode);
@@ -56,7 +45,7 @@ router.post('/verify-mail-code', service.verify_mailcode);
 router.post('/user/change-username', service.change_username);
 
 // 修改密码
-router.post('/user/change-password', resetPwdVaildator, service.change_password);
+router.post('/user/change-password', service.change_password);
 
 // 修改签名
 router.post('/user/change-signature', service.change_signature);
