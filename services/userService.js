@@ -1,23 +1,23 @@
 
-const { querySql, queryOne, modifysql } = require('../utils/index');
-const md5 = require('../utils/md5');
+// const { querySql, queryOne, modifysql } = require('../utils/index');
+// const md5 = require('../utils/md5');
 const boom = require('boom');
 const { body, validationResult } = require('express-validator');
 const { 
   CODE_ERROR,
   CODE_SUCCESS,
 } = require('../utils/constant');
-const { decode } = require('../utils/user-jwt');
+// const { decode } = require('../utils/user-jwt');
 const nodemail = require('../utils/nodemailer');
 const { select_user_by_id, select_users_by_param_order, select_user_by_name,
         select_full_user_by_email, select_full_user_by_id, select_full_user_by_name,
         insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email } = require('../CURDs/userCURD');
-var allowregister = false; 
+var allowregister = true; 
 var haveList = false;
-var fs = require("fs");
-const { error } = require('console');
-const { setCookie } = require('undici-types');
-const { user } = require('../db/dbConfig');
+// var fs = require("fs");
+// const { error } = require('console');
+// const { setCookie } = require('undici-types');
+// const { user } = require('../db/dbConfig');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -26,8 +26,7 @@ function validateFunction(req, res, next, func, isDefault) {
     const [{ message }] = err.errors;
     next(boom.badRequest(message));
   } else {
-    isDefault ?
-    func(req, res, next)
+    isDefault ? func(req, res, next)
     .then(normalObj => {
       res.json(normalObj);
     })
@@ -41,7 +40,7 @@ function validateFunction(req, res, next, func, isDefault) {
 }
 
 // 是否开放注册
-function get_allow_register(req, res, next) {//
+function get_allow_register(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     res.json({
       success: true,
@@ -52,36 +51,58 @@ function get_allow_register(req, res, next) {//
 }
 
 // 获取单个用户信息
-function user_info(req, res, next) {//
+function user_info(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { id } = req.body;
+    let { id } = req.query;
     return select_user_by_id(id)
     .then(normalObj => {
-      let {success, message, username, character, signature, registerTime, pas, mail} = normalObj;
-      res.json({success, message, username, character, signature, registerTime, pas, mail});
+      // console.log(normalObj);
+      let {success, message, username, character, signature, registerTime, pass, mail} = normalObj;
+      res.json({success, message, username, character, signature, registerTime, pass, mail});
     });
   }, false);
 }
 
 // 获取用户列表
-function user_list(req, res, next) {//
+function user_list(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { order, increase, usernameKeyword, start, end } = req.body;
+    let { order, increase, usernameKeyword, start, end } = req.query;
+    switch (order) {
+      case 'id': {
+        order = 'user_id';
+        break;
+      }
+      case 'username': {
+        order = 'user_name';
+        break;
+      }
+      case 'character': {
+        order = 'user_role';
+        break;
+      }
+      case 'registerTime': {
+        order = 'user_register_time';
+        break;
+      }
+      default: {
+        break;
+      }
+    }
     return select_users_by_param_order(order, increase, usernameKeyword, start, end);
   }, true);
 }
 
 // 获取可以注册的邮箱后缀列表
-function mail_suffux_list(req, res, next) {//
+function mail_suffux_list(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     return select_email_suffixes();
   }, true);
 }
 
 // 获取邮箱修改的时间限制
-function mail_changetime(req, res, next) {//
+function mail_changetime(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let id = req.signedCookies.user_id
+    let id = req.signedCookies.user_id;
     return select_user_by_id(id)
     .then(normalObj => {
       if(normalObj.success) {
@@ -104,7 +125,7 @@ function mail_changetime(req, res, next) {//
 }
 
 // 获取用户名修改的时间限制
-function username_changetime(req, res, next) {//
+function username_changetime(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let id = req.signedCookies.user_id
     return select_user_by_id(id)
@@ -129,7 +150,7 @@ function username_changetime(req, res, next) {//
 }
 
 // 用户登录
-function login(req, res, next) {//
+function login(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { usernameOrMail, passwordCode } = req.body;
     let userObj = null;
@@ -185,14 +206,14 @@ function login(req, res, next) {//
 }
 
 // 退出登录
-function logout(req, res, next) {//
+function logout(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     res.cookie('user_id', req.signedCookies.user_id, {maxAge: 0, signed: true})
   }, false);
 }
 
 // 设置是否开放注册
-function allow_register(req, res, next) {//
+function allow_register(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let id = req.signedCookies.user_id
     let { cookie, allow } = req.body
@@ -225,7 +246,7 @@ function allow_register(req, res, next) {//
 }
 
 // 用户注册
-function register(req, res, next) {//
+function register(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { sessionId, username, passwordHash, signature} = req.body;
     if(username.length < 3 || username.length > 20) {
@@ -296,7 +317,7 @@ function register(req, res, next) {//
 }
 
 // 向邮箱发送验证码
-function prepare_mailcode(req, res, next) {//
+function prepare_mailcode(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { useremail } = req.body;
     if(useremail.length > 50) {
@@ -567,7 +588,7 @@ function set_mail(req, res, next) {//
     let id = req.signedCookies.user_id
     if(id == 1) {
       if(mail_list.length != 0) {
-        insert__email_suffixes(mail_list)
+        insert_email_suffixes(mail_list)
         .then(result => {
           res.json({ 
             message: result.message, 
