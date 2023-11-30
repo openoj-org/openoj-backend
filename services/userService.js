@@ -173,6 +173,30 @@ function login(req, res, next) {
           id: usr.userInfo.user_id,
           passwordHash: usr.userInfo.user_password_hash
         };
+        if (userObj == null || userObj.passwordHash != passwordCode) {
+          res.status(CODE_ERROR).json({
+            success: false,
+            message: '用户名或密码错误'
+          });
+        } else {
+          select_full_user_by_id(userObj.id)
+          .then(usr => {
+            if (usr.success) {
+              res.cookie('user_id', userObj.id, {maxAge: 3600000, signed: true})
+              res.json({
+                code: CODE_SUCCESS,
+                success: true,
+                message: '登录成功',
+                username: usr.userInfo.user_name,
+                character: usr.userInfo.user_role,
+                id: userObj.id
+              })
+            }
+          })
+          .catch(errorObj => {
+            res.json(errorObj);
+          });
+        }
       } else {
         select_full_user_by_name(usernameOrMail)
         .then(usr => {
@@ -181,6 +205,30 @@ function login(req, res, next) {
               id: usr.userInfo.user_id,
               passwordHash: usr.userInfo.user_password_hash
             };
+          }
+          if (userObj == null || userObj.passwordHash != passwordCode) {
+            res.status(CODE_ERROR).json({
+              success: false,
+              message: '用户名或密码错误'
+            });
+          } else {
+            select_full_user_by_id(userObj.id)
+            .then(usr => {
+              if (usr.success) {
+                res.cookie('user_id', userObj.id, {maxAge: 3600000, signed: true})
+                res.json({
+                  code: CODE_SUCCESS,
+                  success: true,
+                  message: '登录成功',
+                  username: usr.userInfo.user_name,
+                  character: usr.userInfo.user_role,
+                  id: userObj.id
+                })
+              }
+            })
+            .catch(errorObj => {
+              res.json(errorObj);
+            });
           }
         })
         .catch(errorObj => {
