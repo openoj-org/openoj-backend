@@ -166,7 +166,7 @@ function login(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { usernameOrMail, passwordCode } = req.body;
     let userObj = null;
-    select_full_user_by_email(usernameOrMail)
+    return select_full_user_by_email(usernameOrMail)
     .then(usr => {
       if (usr.success) {
         userObj = {
