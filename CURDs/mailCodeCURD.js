@@ -99,6 +99,36 @@ function select_mail_code_by_session_id(id) {
 	});
 }
 
+function select_mail_code_by_success_session_id(id) {
+	return querySql(`SELECT * FROM mail_sessions WHERE mail_success_session_id = '${id}';`)
+	.then(mailCodes => {
+		if (!mailCodes || mailCodes.length == 0) {
+			return {
+				success: false,
+				message: '会话不存在'
+			};
+		} else {
+			let mailCode = mailCodes[0];
+			return {
+				success: true,
+				message: '获取会话成功',
+				// 验证码生成后经过的毫秒数
+				generateTime: new Date().getTime() - mailCode.mail_code_generate_time,
+				// 验证码对应邮箱
+				mail: mailCode.mail,
+				// 会话场景
+				scene: mailCode.mail_session_scene
+			};
+		}
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
 function insert_mail_code(session_id, mail, code_number, scene) {
 	let sql = `INSERT INTO mail_sessions(mail_session_id, mail, \
 		       mail_code_number, mail_session_scene) \
@@ -160,6 +190,8 @@ module.exports = {
 	update_mail_code_success_session_id,
 	// 按 sessionId 查询邮箱验证码
 	select_mail_code_by_session_id,
+	// 按成功后的会话 id 查询邮箱验证码
+	select_mail_code_by_success_session_id,
 	// 按邮箱查询邮箱验证码
 	select_mail_code_by_mail,
 	// 插入邮箱验证码 (已经在后端生成)
