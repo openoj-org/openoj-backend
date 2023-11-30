@@ -198,7 +198,7 @@ function update_user(id, param, value)
 
 function delete_user(id)
 {
-	return querySql(`DELETE FROM users WHERE id = ${id}`)
+	return querySql(`DELETE FROM users WHERE user_id = ${id}`)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
@@ -258,6 +258,22 @@ function select_user_id_by_cookie(cookie) {
 	});
 }
 
+function delete_cookie(cookie) {
+	return querySql(`DELETE FROM cookies WHERE cookie = ${cookie}`)
+	.then(result => {
+		return {
+			success: result.affectedRows != 0,
+			message: (result.affectedRows != 0) ? 'cookie 销毁成功' : 'cookie 无效'
+		};
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
 module.exports = {
 	// 查询允许注册的邮箱后缀 email_suffix 列表
 	select_email_suffixes,
@@ -286,5 +302,7 @@ module.exports = {
 	// 插入 cookie
 	insert_cookie,
 	// 根据 cookie 查询 user_id
-	select_user_id_by_cookie
+	select_user_id_by_cookie,
+	// 销毁 cookie
+	delete_cookie
 };
