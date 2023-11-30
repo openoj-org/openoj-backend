@@ -231,6 +231,33 @@ function insert_cookie(id, cookie) {
 	});
 }
 
+function select_user_id_by_cookie(cookie) {
+	let sql = 'SELECT * FROM cookies ' + 
+			  `WHERE cookie = '${cookie}'$;`;
+	return querySql(sql)
+	.then(coos => {
+		if (coos && coos.length > 0) {
+			return {
+				success: true,
+				message: '查询 id 成功',
+				id: coos[0].user_id
+			};
+		} else {
+			return {
+				success: false,
+				message: '无效的 cookie'
+			};
+		}
+		
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
 module.exports = {
 	// 查询允许注册的邮箱后缀 email_suffix 列表
 	select_email_suffixes,
@@ -257,5 +284,7 @@ module.exports = {
 	// 注销给定 id 的用户
 	delete_user,
 	// 插入 cookie
-	insert_cookie
+	insert_cookie,
+	// 根据 cookie 查询 user_id
+	select_user_id_by_cookie
 };
