@@ -94,8 +94,8 @@ function problem_create(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let form = new multiparty.Form();
     form.parse(req, function(err,fields,file){
-      console.log(fields);
       
+
     });
   }, false);
 }

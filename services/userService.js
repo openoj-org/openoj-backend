@@ -1,22 +1,23 @@
 
-const { querySql, queryOne, modifysql } = require('../utils/index');
-const md5 = require('../utils/md5');
+//const { querySql, queryOne, modifysql } = require('../utils/index');
+//const md5 = require('../utils/md5');
 const boom = require('boom');
 const { body, validationResult } = require('express-validator');
 const { 
   CODE_ERROR,
   CODE_SUCCESS,
 } = require('../utils/constant');
-const { decode } = require('../utils/user-jwt');
+//const { decode } = require('../utils/user-jwt');
 const nodemail = require('../utils/nodemailer');
 const { select_user_by_id, select_users_by_param_order, select_user_by_name,
         select_full_user_by_email, select_full_user_by_id, select_full_user_by_name,
         insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email } = require('../CURDs/userCURD');
+const { insert_mail_code, select_mail_code_by_id, select_mail_code_by_mail, delete_mail_code} = require('../CURDs/mailCodeCURD');
 var allowregister = false; 
-var haveList = false;
+//var haveList = false;
 var fs = require("fs");
-const { error } = require('console');
-const { setCookie } = require('undici-types');
+//const { error } = require('console');
+//const { setCookie } = require('undici-types');
 const { user } = require('../db/dbConfig');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
@@ -140,24 +141,25 @@ function login(req, res, next) {//
           id: usr.userInfo.user_id,
           passwordHash: usr.userInfo.user_password_hash
         };
+      } else {
+        select_full_user_by_name(usernameOrMail)
+        .then(usr => {
+          if (usr.success) {
+            userObj = {
+              id: usr.userInfo.user_id,
+              passwordHash: usr.userInfo.user_password_hash
+            };
+          }
+        })
+        .catch(errorObj => {
+          res.json(errorObj);
+        });
       }
     })
     .catch(errorObj => {
       res.json(errorObj);
     });
-    select_full_user_by_name(usernameOrMail)
-    .then(usr => {
-      if (usr.success) {
-        userObj = {
-          id: usr.userInfo.user_id,
-          passwordHash: usr.userInfo.user_password_hash
-        };
-      }
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
-    });
-
+    
     if (userObj == null || userObj.passwordHash != passwordCode) {
       res.status(CODE_ERROR).json({
         success: false,
@@ -227,6 +229,13 @@ function allow_register(req, res, next) {//
 // 用户注册
 function register(req, res, next) {//
   validateFunction(req, res, next, (req, res, next) => {
+    if(!allowregister) {
+      res.status(CODE_ERROR).json({
+        success: false,
+        message: '未开放注册'
+      });
+      return;
+    }
     let { sessionId, username, passwordHash, signature} = req.body;
     if(username.length < 3 || username.length > 20) {
       res.status(CODE_ERROR).json({
@@ -298,8 +307,8 @@ function register(req, res, next) {//
 // 向邮箱发送验证码
 function prepare_mailcode(req, res, next) {//
   validateFunction(req, res, next, (req, res, next) => {
-    let { useremail } = req.body;
-    if(useremail.length > 50) {
+    let { address } = req.body;
+    if(address.length > 50) {
       res.status(CODE_ERROR).json({
         success: false,
         message: '邮箱长度应小于50'
@@ -311,7 +320,7 @@ function prepare_mailcode(req, res, next) {//
     var mail = {
       from: '<zxbzxb20@163.com>',
       subject: '接受凭证',
-      to: useremail,
+      to: address,
       text: '用' + code + '作为你的验证码'//发送验证码
     };
     nodemail(mail)
@@ -324,7 +333,7 @@ function prepare_mailcode(req, res, next) {//
         return;
       }
     });
-    insert_mail_code(code, useremail)
+    insert_mail_code(address, code)
     .then(result => {
       if(result.success) {
         res.json({ 
@@ -931,6 +940,17 @@ function createSixNum() {
       Num += Math.floor(Math.random() * 10);
   }
   return Num;
+}
+
+function createSessionId() {
+  var Num = "";
+  for (var i = 0; i < 6; i++) {
+      Num += Math.floor(Math.random() * 10);
+  }
+  select_mail_code_by_id(Num)
+  .then(norObj => {
+
+  });
 }
 
 module.exports = {
