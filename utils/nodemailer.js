@@ -14,16 +14,16 @@ const transporter = nodemailer.createTransport(config);
 
 //发送邮件
 module.exports = function (mail){
-    transporter.sendMail(mail, function(error, info){
-        if(error) {
-            return {
-                success: false,
-                message: error
-            };
-        }
-        return {
-            success: true,
-            message: info.response
-        }
-    });
+    return new Promise((resolve, reject) => {
+        try {
+            transporter.sendMail(mail, function(error, info){
+                if(error) {
+                    reject({success: false, message: error.message});
+                } else {
+                    resolve({success: true});
+                }
+            });
+        } catch (e) {
+            reject({success: false, message: e.message});
+        }});
 };

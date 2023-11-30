@@ -12,6 +12,18 @@ const nodemail = require('../utils/nodemailer');
 const { select_user_by_id, select_users_by_param_order, select_user_by_name,
         select_full_user_by_email, select_full_user_by_id, select_full_user_by_name,
         insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email } = require('../CURDs/userCURD');
+const {
+	// 按 id 查询邮箱验证码
+	select_mail_code_by_id,
+	// 按邮箱查询邮箱验证码
+	select_mail_code_by_mail,
+	// 插入邮箱验证码 (已经在后端生成)
+	insert_mail_code,
+	// 更新邮箱验证码
+	update_mail_code,
+	// 删除邮箱验证码
+	delete_mail_code
+} = require('../CURDs/mailCodeCURD');
 var allowregister = true; 
 var haveList = false;
 // var fs = require("fs");
@@ -276,8 +288,8 @@ function register(req, res, next) {
     select_emailcode_by_id(sessionId)
     .then(normalObj => {
       if(normalObj.success) {
-        let useremail = normalObj.email;
-        select_user_by_email(useremail)
+        let address = normalObj.email;
+        select_user_by_email(address)
         .then(norObj => {
           if(norObj.success) {
             res.status(CODE_ERROR).json({
@@ -287,7 +299,7 @@ function register(req, res, next) {
             return;
           }
         });
-        return insert_user(username,passwordHash,useremail,3,signature)
+        return insert_user(username,passwordHash,address,3,signature)
         .then(result => {
           if(result.success) {
             res.cookie('user_id', result.id, {maxAge: 3600000, signed: true})
@@ -319,8 +331,8 @@ function register(req, res, next) {
 // 向邮箱发送验证码
 function prepare_mailcode(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { useremail } = req.body;
-    if(useremail.length > 50) {
+    let { address } = req.body;
+    if(address.length > 50) {
       res.status(CODE_ERROR).json({
         success: false,
         message: '邮箱长度应小于50'
@@ -332,7 +344,7 @@ function prepare_mailcode(req, res, next) {
     var mail = {
       from: '<zxbzxb20@163.com>',
       subject: '接受凭证',
-      to: useremail,
+      to: address,
       text: '用' + code + '作为你的验证码'//发送验证码
     };
     nodemail(mail)
@@ -345,7 +357,7 @@ function prepare_mailcode(req, res, next) {
         return;
       }
     });
-    insert_mail_code(code, useremail)
+    return insert_mail_code(address, code)
     .then(result => {
       if(result.success) {
         res.json({ 

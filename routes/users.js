@@ -36,7 +36,7 @@ router.post('/user/allow-register', service.allow_register);
 router.post('/user/register', service.register);
 
 // 向邮箱发送验证码
-router.post('/user/prepare-mail-code', service.prepare_mailcode);
+router.post('/user/prepare-mail-code', service.prepare_mailcode); // OK
 
 // 验证验证码是否正确
 router.post('/verify-mail-code', service.verify_mailcode);
