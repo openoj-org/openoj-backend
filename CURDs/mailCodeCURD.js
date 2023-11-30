@@ -20,7 +20,7 @@ const { querySql, queryOne, modifySql } = require('../utils/index');
 // }
 
 function select_mail_code_by_mail(mail) {
-	return querySql(`SELECT * FROM mail_codes WHERE mail = ${mail};`)
+	return querySql(`SELECT * FROM mail_sessions WHERE mail = ${mail};`)
 	.then(mailCodes => {
 		if (!mailCodes || mailCodes.length == 0) {
 			return {
@@ -50,7 +50,7 @@ function select_mail_code_by_mail(mail) {
 }
 
 function update_mail_code_success_session_id(id, success_id) {
-	let sql = `UPDATE mail_codes SET mail_success_session_id = \
+	let sql = `UPDATE mail_sessions SET mail_success_session_id = \
 	           '${success_id}' WHERE mail_session_id = '${id}';`;
 	return querySql(sql)
 	.then(result => {
@@ -68,7 +68,7 @@ function update_mail_code_success_session_id(id, success_id) {
 }
 
 function select_mail_code_by_session_id(id) {
-	return querySql(`SELECT * FROM mail_codes WHERE mail_session_id = '${id}';`)
+	return querySql(`SELECT * FROM mail_sessions WHERE mail_session_id = '${id}';`)
 	.then(mailCodes => {
 		if (!mailCodes || mailCodes.length == 0) {
 			return {
@@ -85,7 +85,9 @@ function select_mail_code_by_session_id(id) {
 				// 验证码对应邮箱
 				mail: mailCode.mail,
 				// 验证码内容
-				code_number: mailCode.mail_code_number
+				code_number: mailCode.mail_code_number,
+				// 会话场景
+				type: mailCode.mail_session_type
 			};
 		}
 	})
@@ -97,9 +99,11 @@ function select_mail_code_by_session_id(id) {
 	});
 }
 
-function insert_mail_code(session_id, mail, code_number) {
-	let sql = `INSERT INTO mail_codes(mail_session_id, mail, mail_code_number) \
-	           VALUES('${session_id}', '${mail}', '${code_number}');`;
+function insert_mail_code(session_id, mail, code_number, type) {
+	let sql = `INSERT INTO mail_sessions(mail_session_id, mail, \
+		       mail_code_number, mail_session_type) \
+	           VALUES('${session_id}', '${mail}',
+			   '${code_number}', ${type});`;
 	return querySql(sql)
 	.then(result => {
 		return {
@@ -116,7 +120,7 @@ function insert_mail_code(session_id, mail, code_number) {
 }
 
 function update_mail_code(id, code_number) {
-	let sql = `UPDATE mail_codes SET mail_code_number = ${code_number}, \
+	let sql = `UPDATE mail_sessions SET mail_code_number = ${code_number}, \
 	           mail_code_generate_time = ${new Date().getTime()} \
 			   WHERE mail_session_id = ${id};`;
 	return querySql(sql)
@@ -136,7 +140,7 @@ function update_mail_code(id, code_number) {
 
 function delete_mail_code(id)
 {
-	return querySql(`DELETE FROM mail_codes WHERE mail_session_id = ${id};`)
+	return querySql(`DELETE FROM mail_sessions WHERE mail_session_id = ${id};`)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
