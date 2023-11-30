@@ -63,7 +63,8 @@ function select_mail_code_by_id(id) {
 
 function insert_mail_code(mail, code_number) {
 	let sql = `INSERT INTO mail_codes(mail, mail_code_number) \
-	           VALUES('${mail}', ${code_number}));`;
+	           VALUES('${mail}', '${code_number}');`;
+			   console.log(sql);
 	return querySql(sql)
 	.then(result => {
 		return {

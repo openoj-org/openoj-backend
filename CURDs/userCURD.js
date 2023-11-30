@@ -55,6 +55,7 @@ function select_full_user_by_name(name) {
 function select_first_user_by_param(param, value) {
 	return querySql(`SELECT * FROM users WHERE ${param} LIKE '${value}';`)
 	.then(users => {
+		// console.log(param, value, '\n');
 		if (!users || users.length == 0) {
 			return {
 				success: false,
@@ -80,29 +81,38 @@ function select_first_user_by_param(param, value) {
 function select_first_user_info_by_param(param, value) {
 	return select_first_user_by_param(param, value)
 	.then(usr => {
+		// console.log(usr);
 		if (usr && usr.success) {
+			let usrInfo = usr.userInfo;
 			return {
-				success: true,
-				message: '用户信息查询成功',
-				username: usr.user_name,
-				character: usr.user_role,
-				signature: usr.user_signature,
-				registerTime: usr.user_register_time,
-				emailChangeTime: usr.user_email_change_time,
-				nameChangeTime: usr.user_name_change_time,
-				pass: usr.user_pass_number,
-				mail: usr.user_email
+				success: usr.success,
+				message: usr.message,
+				username: usrInfo.user_name,
+				character: usrInfo.user_role,
+				signature: usrInfo.user_signature,
+				registerTime: usrInfo.user_register_time,
+				emailChangeTime: usrInfo.user_email_change_time,
+				nameChangeTime: usrInfo.user_name_change_time,
+				pass: usrInfo.user_pass_number,
+				mail: usrInfo.user_email
 			};
+		} else {
+			return {
+				success: false,
+				message: '用户不存在'
+			}
 		}
-	})
+	});
 }
 
 // 根据某一参数排序查询用户列表，返回第 start 至 end 个结果组成的列表
 function select_users_by_param_order(order, increase, usernameKeyword, start, end) {
-	let sql = `SELECT * FROM users WHERE user_name LIKE '${usernameKeyword}%' `
-	          + `ORDER BY ${order} ` + (increase ? 'ASC ' : 'DESC ')
-			  + `LIMIT ${start}, ${end};`;
-	
+	let sql = 'SELECT * FROM users ';
+	sql += (usernameKeyword == null) ? '' : `WHERE user_name LIKE '${usernameKeyword}%' `;
+	sql += `ORDER BY ${order} ` + (increase ? 'ASC ' : 'DESC ');
+    sql += `LIMIT ${start}, ${end};`;
+	console.log({ order, increase, usernameKeyword, start, end });
+	console.log(sql);
 	return querySql(sql)
 	.then(users => {
 		if (!users || users.length == 0) {

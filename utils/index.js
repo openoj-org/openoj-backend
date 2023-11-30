@@ -14,6 +14,7 @@ function connect() {
 
 function querySql(sql) { 
   const conn = connect();
+  conn.query('USE oj_schema;');
   return new Promise((resolve, reject) => {
     try {
       conn.query(sql, (err, res) => {

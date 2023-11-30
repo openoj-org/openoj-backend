@@ -7,10 +7,10 @@ const {
   CODE_ERROR,
   CODE_SUCCESS,
 } = require('../utils/constant');
-const {  } = require('../CURDs/problemCURD');
-const { error } = require('console');
-const { setCookie } = require('undici-types');
-const { user } = require('../db/dbConfig');
+// const {  } = require('../CURDs/problemCURD');
+// const { error } = require('console');
+// const { setCookie } = require('undici-types');
+// const { user } = require('../db/dbConfig');
 var multiparty = require('multiparty');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
