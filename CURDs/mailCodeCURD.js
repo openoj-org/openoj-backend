@@ -87,7 +87,7 @@ function select_mail_code_by_session_id(id) {
 				// 验证码内容
 				code_number: mailCode.mail_code_number,
 				// 会话场景
-				type: mailCode.mail_session_type
+				scene: mailCode.mail_session_scene
 			};
 		}
 	})
@@ -99,11 +99,11 @@ function select_mail_code_by_session_id(id) {
 	});
 }
 
-function insert_mail_code(session_id, mail, code_number, type) {
+function insert_mail_code(session_id, mail, code_number, scene) {
 	let sql = `INSERT INTO mail_sessions(mail_session_id, mail, \
-		       mail_code_number, mail_session_type) \
+		       mail_code_number, mail_session_scene) \
 	           VALUES('${session_id}', '${mail}',
-			   '${code_number}', ${type});`;
+			   '${code_number}', ${scene});`;
 	return querySql(sql)
 	.then(result => {
 		return {
