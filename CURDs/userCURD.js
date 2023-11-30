@@ -213,6 +213,24 @@ function delete_user(id)
 	});
 }
 
+function insert_cookie(id, cookie) {
+	let sql = 'INSERT INTO cookies(user_id, cookie) ' + 
+			  `VALUES('${id}', '${cookie}');`;
+	return querySql(sql)
+	.then(result => {
+		return {
+			success: result.affectedRows != 0,
+			message: (result.affectedRows != 0) ? 'cookie 插入成功' : 'cookie 插入失败'
+		};
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
 module.exports = {
 	// 查询允许注册的邮箱后缀 email_suffix 列表
 	select_email_suffixes,
@@ -237,5 +255,7 @@ module.exports = {
 	// 更新给定 id 的用户属性 param 为 value
 	update_user,
 	// 注销给定 id 的用户
-	delete_user
+	delete_user,
+	// 插入 cookie
+	insert_cookie
 };
