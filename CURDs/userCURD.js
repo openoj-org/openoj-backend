@@ -1,6 +1,49 @@
 
 const { querySql, queryOne, modifySql } = require('../utils/index');
 
+// 查询 global_settings, 返回 { allowRegister, haveList }
+function select_global_settings() {
+	return querySql(`SELECT * FROM global_settings;`)
+	.then(global_settings => {
+		if (!global_settings || global_settings.length == 0) {
+			return {
+				success: false,
+				message: '查询全局设置失败'
+			};
+		} else {
+			return {
+				success: false,
+				message: '查询全局设置成功',
+				allowRegister: global_settings[0].allow_egister,
+				haveList: global_settings[0].have_list
+			}
+		}
+	});
+}
+
+// 更新 global_settings 的 param 字段 ('allow_register'
+// 或 'have_list') 的值为 value
+function update_global_settings(param, value) {
+	let sql = `UPDATE global_settings SET ${param} = ${value} \
+	           WHERE global_setting_id = 0;`;
+	return querySql(sql)
+	.then(result => {
+		return {
+			success: result.affectedRows != 0,
+			message: (result.affectedRows != 0) ?
+					 `${param} 更新成功` :
+					 `${param} 更新失败`
+		};
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
+// 可以注册的邮箱列表
 function select_email_suffixes() {
 	return querySql(`SELECT * FROM email_suffixes;`)
 	.then(email_suffixes => {
@@ -17,8 +60,7 @@ function select_email_suffixes() {
 				message: '邮箱后缀列表查询成功'
 			}
 		}
-	})
-
+	});
 }
 
 // 根据 id 查询用户信息
@@ -110,9 +152,11 @@ function select_users_by_param_order(order, increase, usernameKeyword, start, en
 	let sql = 'SELECT * FROM users ';
 	sql += (usernameKeyword == null) ? '' : `WHERE user_name LIKE '${usernameKeyword}%' `;
 	sql += `ORDER BY ${order} ` + (increase ? 'ASC ' : 'DESC ');
-    sql += `LIMIT ${start}, ${end};`;
-	console.log({ order, increase, usernameKeyword, start, end });
-	console.log(sql);
+	if (start && end) {
+		sql += `LIMIT ${start}, ${end}`;
+	}
+	// console.log({ order, increase, usernameKeyword, start, end });
+	// console.log(sql);
 	return querySql(sql)
 	.then(users => {
 		if (!users || users.length == 0) {
@@ -275,6 +319,29 @@ function delete_cookie(cookie) {
 }
 
 module.exports = {
+	/* 参数: 无
+	 * 作用: 返回包含表示全局设置查询结果的一个对象 {
+	 * 　　  　　// 以下为必有项
+	 * 　　  　　success,       // bool, 表示查询是否成功
+	 * 　　  　　message,       // string, 表示返回的消息
+	 * 　　  　　// 以下为 success = true 时存在项
+	 * 　　  　　allowRegister, // int, 1/0 表示是/否开放注册
+	 * 　　  　　haveList       // int, 1/0 表示是/否限制注册邮箱后缀
+	 * 　　  } 的 Promise 对象
+	 */
+	select_global_settings,
+
+	/* 参数: param, // string, 'allow_register'/'have_list'
+	 * 　　         // 表示是否开放注册/是否限制可注册邮箱后缀
+	 * 　　  value  // int, 1/0 表示是/否
+	 * 作用: 返回包含表示全局设置更新结果的一个对象 {
+	 * 　　  　　// 以下为必有项
+	 * 　　  　　success,       // bool, 表示更新是否成功
+	 * 　　  　　message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
+	update_global_settings,
+
 	// 查询允许注册的邮箱后缀 email_suffix 列表
 	select_email_suffixes,
 	// 根据 id 查询用户信息
