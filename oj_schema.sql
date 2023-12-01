@@ -11,11 +11,20 @@
  Target Server Version : 80035
  File Encoding         : 65001
 
- Date: 27/11/2023 02:50:28
+ Date: 01/12/2023 20:24:00
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for cookies
+-- ----------------------------
+DROP TABLE IF EXISTS `cookies`;
+CREATE TABLE `cookies`  (
+  `user_id` int UNSIGNED NOT NULL,
+  `cookie` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for email_suffixes
@@ -25,7 +34,7 @@ CREATE TABLE `email_suffixes`  (
   `email_suffix_id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '邮箱后缀 id',
   `email_suffix` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '邮箱后缀',
   PRIMARY KEY (`email_suffix_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for evaluations
@@ -50,6 +59,34 @@ CREATE TABLE `evaluations`  (
   CONSTRAINT `evaluations_ibfk_1` FOREIGN KEY (`question_is_official`) REFERENCES `questions` (`question_is_official`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `evaluations_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `evaluations_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for global_settings
+-- ----------------------------
+DROP TABLE IF EXISTS `global_settings`;
+CREATE TABLE `global_settings`  (
+  `global_setting_id` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '全局唯一的设置',
+  `allow_register` tinyint NOT NULL DEFAULT 1 COMMENT '是否开放注册',
+  `have_list` tinyint NOT NULL DEFAULT 1 COMMENT '是否限制邮箱后缀',
+  PRIMARY KEY (`global_setting_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+INSERT INTO `oj_schema`.`global_settings` (`global_setting_id`) VALUES (0);
+
+-- ----------------------------
+-- Table structure for mail_sessions
+-- ----------------------------
+DROP TABLE IF EXISTS `mail_sessions`;
+CREATE TABLE `mail_sessions`  (
+  `mail_session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '验证码会话 id',
+  `mail` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '邮箱',
+  `mail_code_generate_time` bigint NOT NULL DEFAULT '(unix_timestamp(now(3)) * 1000)' COMMENT '验证码生成时间',
+  `mail_code_number` char(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '验证码内容',
+  `mail_success_session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '成功验证后的会话 id',
+  `mail_session_scene` int NULL DEFAULT NULL COMMENT '会话场景',
+  PRIMARY KEY (`mail_session_id`) USING BTREE,
+  INDEX `mail`(`mail` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -86,8 +123,8 @@ CREATE TABLE `questions`  (
   `question_description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题描述的 Markdown 文本',
   `question_input_format` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题输入格式的 Markdown 文本',
   `question_output_format` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题输出格式的 Markdown 文本',
-  `question_data_range` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题规模的 Markdown 文本',
-  `question_hint` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题提示的 Markdown 文本',
+  `question_data_range_and_hint` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题规模和提示的 Markdown 文本',
+  `question_background` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题背景的 Markdown 文本',
   `question_source` enum('official_competition','simulated_competition','user_submission') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '问题来源，为 3 种枚举值之一',
   `question_config_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '问题配置文件名',
   `question_submit_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '问题提交时间',
@@ -99,7 +136,7 @@ CREATE TABLE `questions`  (
   INDEX `question_submit_user_id`(`question_submit_user_id` ASC) USING BTREE,
   INDEX `question_is_official`(`question_is_official` ASC) USING BTREE,
   CONSTRAINT `questions_ibfk_1` FOREIGN KEY (`question_submit_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for ratings
@@ -118,7 +155,7 @@ CREATE TABLE `ratings`  (
   CONSTRAINT `ratings_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ratings_ibfk_2` FOREIGN KEY (`rating_submit_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `ratings_ibfk_3` FOREIGN KEY (`question_is_official`) REFERENCES `questions` (`question_is_official`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for recommendations
@@ -133,7 +170,7 @@ CREATE TABLE `recommendations`  (
   INDEX `question_id`(`question_id` ASC) USING BTREE,
   CONSTRAINT `recommendations_ibfk_1` FOREIGN KEY (`recommendation_submit_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `recommendations_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for replies
@@ -150,7 +187,7 @@ CREATE TABLE `replies`  (
   INDEX `user_id`(`reply_submit_user_id` ASC) USING BTREE,
   CONSTRAINT `replies_ibfk_1` FOREIGN KEY (`post_id`) REFERENCES `posts` (`post_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `replies_ibfk_2` FOREIGN KEY (`reply_submit_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sample_evaluations
@@ -172,7 +209,7 @@ CREATE TABLE `sample_evaluations`  (
   CONSTRAINT `sample_evaluations_ibfk_1` FOREIGN KEY (`sample_id`) REFERENCES `samples` (`sample_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `sample_evaluations_ibfk_2` FOREIGN KEY (`evaluation_id`) REFERENCES `evaluations` (`evaluation_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `sample_evaluations_ibfk_3` FOREIGN KEY (`subtask_evaluation_id`) REFERENCES `subtask_evaluations` (`subtask_evaluation_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for samples
@@ -192,7 +229,7 @@ CREATE TABLE `samples`  (
   PRIMARY KEY (`sample_id`) USING BTREE,
   INDEX `question_id`(`question_id` ASC) USING BTREE,
   CONSTRAINT `samples_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for subtask_evaluations
@@ -209,7 +246,7 @@ CREATE TABLE `subtask_evaluations`  (
   INDEX `evaluation_id`(`evaluation_id` ASC) USING BTREE,
   CONSTRAINT `subtask_evaluations_ibfk_1` FOREIGN KEY (`subtask_id`) REFERENCES `subtasks` (`subtask_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `subtask_evaluations_ibfk_2` FOREIGN KEY (`evaluation_id`) REFERENCES `evaluations` (`evaluation_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for subtasks
@@ -223,7 +260,7 @@ CREATE TABLE `subtasks`  (
   PRIMARY KEY (`subtask_id`) USING BTREE,
   INDEX `question_id`(`question_id` ASC) USING BTREE,
   CONSTRAINT `subtasks_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tags
@@ -239,7 +276,7 @@ CREATE TABLE `tags`  (
   INDEX `question_is_official`(`question_is_official` ASC) USING BTREE,
   CONSTRAINT `tags_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `tags_ibfk_2` FOREIGN KEY (`question_is_official`) REFERENCES `questions` (`question_is_official`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for users
@@ -250,7 +287,7 @@ CREATE TABLE `users`  (
   `user_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '用户名，长度为 3-20 的非重复字符串',
   `user_password_hash` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '用户密码的哈希值，原密码必须为 6-20 位数字',
   `user_email` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '用户邮箱，长度不超过 50 的合法邮箱',
-  `user_role` enum('root','admin','trusted','normal','banned') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal' COMMENT '用户角色，为 5 种枚举值之一',
+  `user_role` int NOT NULL DEFAULT 3 COMMENT '用户角色，为 5 种枚举值之一',
   `user_signature` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT '' COMMENT '用户签名，长度不超过 100',
   `user_register_time` bigint UNSIGNED NOT NULL DEFAULT '(unix_timestamp(now(3)) * 1000)' COMMENT '用户注册时间',
   `user_email_change_time` bigint UNSIGNED NOT NULL DEFAULT '(unix_timestamp(now(3)) * 1000)' COMMENT '用户上次修改邮箱时间',
@@ -259,6 +296,6 @@ CREATE TABLE `users`  (
   PRIMARY KEY (`user_id`) USING BTREE,
   UNIQUE INDEX `user_name`(`user_name` ASC) USING BTREE,
   UNIQUE INDEX `user_email`(`user_email` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
