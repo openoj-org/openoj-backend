@@ -10,12 +10,12 @@
         "cookie-parser": "^1.4.6",
         "cors": "^2.8.5",
         "express": "^4.17.1",
-        "express-jwt": "^5.3.3",
         "express-validator": "^6.5.0",
         "jsonwebtoken": "^8.5.1",
         "multiparty": "^4.2.3",
         "mysql": "^2.18.1",
-        "nodemailer": "^6.9.7"
+        "nodemailer": "^6.9.7",
+        "uuid": "^9.0.1"
     },
     "devDependencies": {
         "crypto": "^1.0.1",
