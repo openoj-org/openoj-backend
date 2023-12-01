@@ -1,5 +1,5 @@
 
-const { querySql, queryOne, modifySql } = require('../utils/index');
+const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
 
 // 查询 global_settings, 返回 { allowRegister, haveList }
 function select_global_settings() {
@@ -18,6 +18,12 @@ function select_global_settings() {
 				haveList: global_settings[0].have_list
 			}
 		}
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
 	});
 }
 
@@ -49,17 +55,41 @@ function select_email_suffixes() {
 	.then(email_suffixes => {
 		if (!email_suffixes || email_suffixes.length == 0) {
 			return {
-				haveList: false,
+				success: false,
 				suffixList: null,
 				message: '邮箱后缀列表为空'
 			};
 		} else {
 			return {
-				haveList: true,
-				suffixList: email_suffixes,
+				success: true,
+				suffixList: email_suffixes.map(obj => obj.email_suffix),
 				message: '邮箱后缀列表查询成功'
 			}
 		}
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
+	});
+}
+
+// 批量添加邮箱后缀
+function insert_email_suffixes(suffixes) {
+	return querySql(`INSERT INTO email_suffixes(email_suffix) VALUES(` +
+					toQueryString(suffixes) + `);`)
+	.then(result => {
+		return {
+			success: result.affectedRows != 0,
+			message: (result.affectedRows != 0) ? '添加成功' : '添加失败'
+		};
+	})
+	.catch(err => {
+		return {
+			success: false,
+			message: err.message
+		};
 	});
 }
 
@@ -342,8 +372,26 @@ module.exports = {
 	 */
 	update_global_settings,
 
-	// 查询允许注册的邮箱后缀 email_suffix 列表
+	/* 参数: 无
+	 * 作用: 返回包含表示邮箱后缀列表查询结果的一个对象 {
+	 * 　　  　　// 以下为必有项
+	 * 　　  　　success,       // bool, 表示查询是否成功
+	 * 　　  　　message,       // string, 表示返回的消息
+	 * 　　  　　// 以下为 success = true 时存在项
+	 * 　　  　　suffixList     // array, 表示邮箱后缀 (string) 的列表
+	 * 　　  } 的 Promise 对象
+	 */
 	select_email_suffixes,
+
+	/* 参数: suffixes           // array, 表示邮箱后缀 (string) 的列表
+	 * 作用: 返回包含表示邮箱后缀列表更新结果的一个对象 {
+	 * 　　  　　// 以下为必有项
+	 * 　　  　　success,       // bool, 表示更新是否成功
+	 * 　　  　　message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
+	insert_email_suffixes,
+
 	// 根据 id 查询用户信息
 	select_user_by_id,
 	// 根据 email 查询用户信息

@@ -65,8 +65,28 @@ function modifySql(sql,sqlParams) {
   })
 }
 
+function toQueryString(arr) {
+  let str = '';
+  if (arr && arr.length > 0) {
+    if (typeof(arr[0]) == 'number') {
+      str += arr[0];
+    } else {
+      str += '`' + arr[0] + '`';
+    }
+    for (let i = 1; i < arr.length; ++i) {
+      if (typeof(arr[i]) == 'number') {
+        str += ', ' + arr[i];
+      } else {
+        str += ', `' + arr[i] + '`';
+      }
+    }
+  }
+  return str;
+}
+
 module.exports = {
   querySql,
   queryOne,
-  modifySql
+  modifySql,
+  toQueryString
 }
