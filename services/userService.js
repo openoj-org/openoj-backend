@@ -12,7 +12,8 @@ const {
 const nodemail = require('../utils/nodemailer');
 const { select_user_by_id, select_users_by_param_order, select_user_by_name,
         select_full_user_by_email, select_full_user_by_id, select_full_user_by_name,
-        insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email, insert_cookie, delete_cookie, select_user_id_by_cookie, update_global_settings, select_global_settings } = require('../CURDs/userCURD');
+        insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email, insert_cookie, delete_cookie, select_user_id_by_cookie,
+        insert_email_suffixes, update_global_settings, select_global_settings } = require('../CURDs/userCURD');
 const {
 	update_mail_code_success_session_id,
 	// 按 sessionId 查询邮箱验证码
@@ -957,7 +958,13 @@ function set_mail(req, res, next) {//
                 suffixList = suffixList.replace("[\"",'');
                 suffixList = suffixList.replace("\"]",'');
                 let suflist = suffixList.split('\",\"');
-                //TODO 向数据库添加邮箱后缀
+                insert_email_suffixes(suflist)
+                .then(norObj =>{
+                  res.json({
+                    success: norObj.success,
+                    message: norObj.message
+                  })
+                })
               } else {
                 res.json({
                   success: true,
