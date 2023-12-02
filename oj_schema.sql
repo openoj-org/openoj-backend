@@ -298,4 +298,6 @@ CREATE TABLE `users`  (
   UNIQUE INDEX `user_email`(`user_email` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
+INSERT INTO `oj_schema`.`users` (`user_name`, `user_email`, `user_password_hash`, `user_role`) VALUES (`root`, `zxbzxb20@163.com`, `12341234567856781234123456785678`, 0);
+
 SET FOREIGN_KEY_CHECKS = 1;
