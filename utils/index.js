@@ -65,19 +65,29 @@ function modifySql(sql,sqlParams) {
   })
 }
 
-function toQueryString(arr) {
+function toQueryString(arr, haveParentheses) {
   let str = '';
   if (arr && arr.length > 0) {
     if (typeof(arr[0]) == 'number') {
-      str += arr[0];
+      str += (haveParentheses ? '(' : '') +
+             arr[0] +
+             (haveParentheses ? ')' : '');
     } else {
-      str += '`' + arr[0] + '`';
+      str += (haveParentheses ? '(' : '') +
+             '"' + arr[0] + '"' +
+             (haveParentheses ? ')' : '');
     }
     for (let i = 1; i < arr.length; ++i) {
       if (typeof(arr[i]) == 'number') {
-        str += ', ' + arr[i];
+        str += ', ' +
+               (haveParentheses ? '(' : '') +
+               arr[i] +
+               (haveParentheses ? ')' : '');
       } else {
-        str += ', `' + arr[i] + '`';
+        str += ', ' +
+               (haveParentheses ? '(' : '') +
+               '"' + arr[i] + '"' +
+               (haveParentheses ? ')' : '');
       }
     }
   }

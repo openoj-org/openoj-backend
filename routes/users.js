@@ -6,16 +6,16 @@ const service = require('../services/userService');
 
 
 // 是否开放注册
-router.get('/user/get-allow-register', service.get_allow_register); // OK
+router.get('/user/get-allow-register', service.get_allow_register);
 
 // 获取单个用户信息
-router.get('/user/info', service.user_info); // OK
+router.get('/user/info', service.user_info);
 
 // 获取用户列表
-router.get('/user/list', service.user_list); // OK
+router.get('/user/list', service.user_list);
 
 // 获取可以注册的邮箱后缀列表
-router.get('/user/mail-suffix-list', service.mail_suffux_list); // OK
+router.get('/user/mail-suffix-list', service.mail_suffux_list);
 
 // 获取邮箱修改的时间限制
 router.get('/user/mail-change-time', service.mail_changetime);
@@ -36,7 +36,7 @@ router.post('/user/allow-register', service.allow_register);
 router.post('/user/register', service.register);
 
 // 向邮箱发送验证码
-router.post('/user/prepare-mail-code', service.prepare_mailcode); // OK
+router.post('/user/prepare-mail-code', service.prepare_mailcode);
 
 // 验证验证码是否正确
 router.post('/verify-mail-code', service.verify_mailcode);

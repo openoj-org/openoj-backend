@@ -5,18 +5,16 @@ const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index
 function select_global_settings() {
 	return querySql(`SELECT * FROM global_settings;`)
 	.then(global_settings => {
-		if (!global_settings || global_settings.length == 0) {
-			return {
-				success: false,
-				message: '查询全局设置失败'
-			};
-		} else {
-			return {
-				success: false,
-				message: '查询全局设置成功',
-				allowRegister: global_settings[0].allow_egister,
-				haveList: global_settings[0].have_list
-			}
+		let flag = global_settings && (global_settings.length > 0);
+		return {
+			success: flag,
+			message: '查询全局设置' + (flag ? '成功' : '失败'),
+			allowRegister: (flag ? 
+						    (global_settings[0].allow_register > 0) :
+							undefined),
+			haveList: (flag ?
+					   (global_settings[0].have_list > 0) :
+					   undefined)
 		}
 	})
 	.catch(err => {
@@ -30,7 +28,8 @@ function select_global_settings() {
 // 更新 global_settings 的 param 字段 ('allow_register'
 // 或 'have_list') 的值为 value
 function update_global_settings(param, value) {
-	let sql = `UPDATE global_settings SET ${param} = ${value} \
+	let numValue = value ? 1 : 0;
+	let sql = `UPDATE global_settings SET ${param} = ${numValue} \
 	           WHERE global_setting_id = 0;`;
 	return querySql(sql)
 	.then(result => {
@@ -56,7 +55,7 @@ function select_email_suffixes() {
 		if (!email_suffixes || email_suffixes.length == 0) {
 			return {
 				success: false,
-				suffixList: null,
+				suffixList: undefined,
 				message: '邮箱后缀列表为空'
 			};
 		} else {
@@ -77,8 +76,10 @@ function select_email_suffixes() {
 
 // 批量添加邮箱后缀
 function insert_email_suffixes(suffixes) {
-	return querySql(`INSERT INTO email_suffixes(email_suffix) VALUES(` +
-					toQueryString(suffixes) + `);`)
+	let sql = 'INSERT INTO email_suffixes (email_suffix) VALUES ' +
+	          toQueryString(suffixes, true) + ';';
+	// console.log(sql);
+	return querySql(sql)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
@@ -254,7 +255,8 @@ function update_user(id, param, value)
 	} else if (param == 'user_email') {
 		sql += `, user_email_change_time = ${new Date().getTime()}`;
 	}
-	sql += ` WHERE id = ${id}`;
+	sql += ` WHERE user_id = ${id};`;
+
 	return querySql(sql)
 	.then(result => {
 		return {
@@ -307,7 +309,7 @@ function insert_cookie(id, cookie) {
 
 function select_user_id_by_cookie(cookie) {
 	let sql = 'SELECT * FROM cookies ' + 
-			  `WHERE cookie = '${cookie}'$;`;
+			  `WHERE cookie = '${cookie}';`;
 	return querySql(sql)
 	.then(coos => {
 		if (coos && coos.length > 0) {
@@ -333,7 +335,7 @@ function select_user_id_by_cookie(cookie) {
 }
 
 function delete_cookie(cookie) {
-	return querySql(`DELETE FROM cookies WHERE cookie = ${cookie}`)
+	return querySql(`DELETE FROM cookies WHERE cookie = '${cookie}'`)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
@@ -355,15 +357,15 @@ module.exports = {
 	 * 　　  　　success,       // bool, 表示查询是否成功
 	 * 　　  　　message,       // string, 表示返回的消息
 	 * 　　  　　// 以下为 success = true 时存在项
-	 * 　　  　　allowRegister, // int, 1/0 表示是/否开放注册
-	 * 　　  　　haveList       // int, 1/0 表示是/否限制注册邮箱后缀
+	 * 　　  　　allowRegister, // bool, 表示是否开放注册
+	 * 　　  　　haveList       // bool, 表示是否限制注册邮箱后缀
 	 * 　　  } 的 Promise 对象
 	 */
 	select_global_settings,
 
 	/* 参数: param, // string, 'allow_register'/'have_list'
 	 * 　　         // 表示是否开放注册/是否限制可注册邮箱后缀
-	 * 　　  value  // int, 1/0 表示是/否
+	 * 　　  value  // bool, 表示是否
 	 * 作用: 返回包含表示全局设置更新结果的一个对象 {
 	 * 　　  　　// 以下为必有项
 	 * 　　  　　success,       // bool, 表示更新是否成功

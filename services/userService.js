@@ -51,18 +51,21 @@ function validateFunction(req, res, next, func, isDefault) {
   }
 }
 
-// 是否开放注册
+// 是否开放注册, 已完成对接、测试
 function get_allow_register(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    res.json({
-      success: true,
-      message: '查询成功',
-      allow: allowregister
-    });
+    return select_global_settings()
+    .then(normalObj => {
+      res.json({
+        success: normalObj.success,
+        message: normalObj.message,
+        allow: normalObj.success ? normalObj.allowRegister : undefined
+      });
+    })
   }, false);
 }
 
-// 获取单个用户信息
+// 获取单个用户信息, 已完成对接、测试
 function user_info(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { id } = req.query;
@@ -75,7 +78,7 @@ function user_info(req, res, next) {
   }, false);
 }
 
-// 获取用户列表
+// 获取用户列表, 已完成对接、测试
 function user_list(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { order, increase, usernameKeyword, start, end } = req.query;
@@ -104,17 +107,34 @@ function user_list(req, res, next) {
   }, true);
 }
 
-// 获取可以注册的邮箱后缀列表
+// 获取可以注册的邮箱后缀列表, 已完成对接、测试
 function mail_suffux_list(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    return select_email_suffixes();
-  }, true);
+    return select_email_suffixes()
+    .then(normalObj => {
+      select_global_settings()
+      .then(setting => {
+        res.json({
+          haveList: setting.haveList,
+          suffixList: setting.haveList ?
+                      normalObj.suffixList :
+                      undefined
+        });
+      })
+      .catch(err => {
+        res.json({
+          success: false,
+          message: err.message
+        });
+      })
+    })
+  }, false);
 }
 
-// 获取邮箱修改的时间限制
+// 获取邮箱修改的时间限制, 已完成对接、测试
 function mail_changetime(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let {cookie} = req.body;
+    let {cookie} = req.query;
     return select_user_id_by_cookie(cookie)
     .then(usrid => {
       if(usrid.success) {
@@ -127,14 +147,11 @@ function mail_changetime(req, res, next) {
               time: Math.max(31356000000 - new Date().getTime() + normalObj.emailChangeTime, 0)
             });
           } else {
-            res.json({
-              success: false,
-              message: normalObj.message
-            });
+            res.json(normalObj);
           }
         })
-        .catch(errorObj => {
-          res.json(errorObj);
+        .catch(errObj => {
+          res.json(errObj);
         });
       } else {
         res.json({
@@ -149,10 +166,10 @@ function mail_changetime(req, res, next) {
   }, false);
 }
 
-// 获取用户名修改的时间限制
+// 获取用户名修改的时间限制, 已完成对接、测试
 function username_changetime(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let {cookie} = req.body;
+    let {cookie} = req.query;
     return select_user_id_by_cookie(cookie)
     .then(usrid => {
       if(usrid.success) {
@@ -165,14 +182,11 @@ function username_changetime(req, res, next) {
               time: Math.max(1209600000 - new Date().getTime() + normalObj.nameChangeTime, 0)
             });
           } else {
-            res.json({
-              success: false,
-              message: normalObj.message
-            });
+            res.json(normalObj);
           }
         })
-        .catch(errorObj => {
-          res.json(errorObj);
+        .catch(errObj => {
+          res.json(errObj);
         });
       } else {
         res.json({
@@ -298,35 +312,21 @@ function login(req, res, next) {
   });
 }
 
-// 退出登录
+// 退出登录, 已完成对接、测试
 function logout(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {cookie} = req.body;
     return delete_cookie(cookie)
     .then(result => {
-      if(result.success)
-      {
-        res.json({
-          success: true,
-          message: result.message
-        })
-      } else {
-        res.json({
-          success: false,
-          message: result.message
-        })
-      }
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
+      res.json(result);
     });
   }, false);
 }
 
-// 设置是否开放注册
+// 设置是否开放注册, 已完成对接、测试
 function allow_register(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, allow } = req.body
+    let { cookie, allow } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usr =>{
       if(usr.success) {
@@ -337,46 +337,24 @@ function allow_register(req, res, next) {
             if(normalObj.character == 0) {
               update_global_settings('allow_register',allow)
               .then(result => {
-                if(result.success) {
-                  res.json({
-                    success: true,
-                    message: '设置成功',
-                  });
-                } else {
-                  res.json({
-                    success: false,
-                    message: result.message,
-                  });
-                }
+                  res.json(result);
               })
               .catch(errorObj =>{
-                res.json(errorObj);
+                res.status(CODE_ERROR).json(errorObj);
               });
-              
             } else {
-              res.json({
-                code: CODE_ERROR,
+              res.status(CODE_ERROR).json({
                 success: false,
                 message: '无设置权限',
               });
             }
           } else {
-            res.json({
-              code: CODE_ERROR,
-              success: false,
-              message: normalObj.message
-            });
+            res.status(CODE_ERROR).json(normalObj);
           }
         });
       } else {
-        res.json({
-          success: false,
-          message: usr.message
-        });
+        res.json(usr);
       }
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
     });
   }, false);
 }
@@ -442,10 +420,7 @@ function register(req, res, next) {
                                     cookie: cookienum
                                   });
                                 } else {
-                                  res.json({
-                                    success: false,
-                                    message: result2.message
-                                  });
+                                  res.json(result2);
                                 }
                               })
                               .catch(errorObj => {
@@ -495,102 +470,85 @@ function register(req, res, next) {
           message: allowregister.message
         });
       }
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
     });
   }, false);
 }
 
-// 向邮箱发送验证码
+// 向邮箱发送验证码, 已完成对接、测试
 function prepare_mailcode(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { address, scene } = req.body;
     if(address.length > 50) {
       res.status(CODE_ERROR).json({
         success: false,
-        message: '邮箱长度应小于50'
+        message: '邮箱长度应小于 50'
       });
-      return;
     }
-    select_user_by_email(address)
+    return select_user_by_email(address)
     .then(result => {
-      if(result.success)
-      {
-        if(scene != 2)
-        {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: '邮箱已绑定'
-          });
-          return;
-        }
+      if (!result.success) {
+        var code = createSixNum();
+        var mail = {
+          from: '<zxbzxb20@163.com>',
+          subject: '接受凭证',
+          to: address,
+          text: '用' + code + '作为你的验证码'//发送验证码
+        };
+        nodemail(mail)
+        .then(result => {
+          if(!result.success) {
+            res.status(CODE_ERROR).json({
+              success: false,
+              message: result.message
+            });
+          } else {
+            let sessionId = createSessionId();
+            return insert_mail_code(sessionId, address, code, scene)
+            .then(result => {
+              if(result.success) {
+                res.json({ 
+                  code: CODE_SUCCESS, 
+                  message: '验证码已发送', 
+                  sessionId: sessionId
+                })
+              } else {
+                res.status(CODE_ERROR).json({
+                  success: false,
+                  message: result.message
+                });
+              }
+            })
+            .catch(errorObj => {
+              res.json(errorObj);
+            });
+          }
+        })
+        .catch(errorObj => {
+          res.json(errorObj);
+        });
+      } else if (scene != 2) {
+        res.status(CODE_ERROR).json({
+          success: false,
+          message: '邮箱已绑定'
+        });
       } else {
-        if(scene == 2)
-        {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: '邮箱未注册'
-          });
-          return;
-        }
+        res.status(CODE_ERROR).json({
+          success: false,
+          message: '邮箱未注册'
+        });
       }
-      var code = createSixNum();
-      var mail = {
-        from: '<zxbzxb20@163.com>',
-        subject: '接受凭证',
-        to: address,
-        text: '用' + code + '作为你的验证码'//发送验证码
-      };
-      nodemail(mail)
-      .then(result => {
-        if(!result.success) {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: result.message
-          });
-          return;
-        } else {
-          let sessionId = createSessionId();
-          return insert_mail_code(sessionId, address, code, scene)
-          .then(result => {
-            if(result.success) {
-              res.json({ 
-                code: CODE_SUCCESS, 
-                message: '验证码已发送', 
-                sessionId: sessionId
-              })
-            } else {
-              res.status(CODE_ERROR).json({
-                success: false,
-                message: result.message
-              });
-            }
-          })
-          .catch(errorObj => {
-            res.json(errorObj);
-          });
-        }
-      })
-      .catch(errorObj => {
-        res.json(errorObj);
-      });
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
     });
   }, false);
 }
 
-// 验证验证码是否正确
-function verify_mailcode(req, res, next) {//
+// 验证验证码是否正确, 已完成对接、测试
+function verify_mailcode(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { sessionId,code } = req.body;
     return select_mail_code_by_session_id(sessionId)
     .then(result => {
       if (!result.success) {
-        res.json({ 
-          code: CODE_ERROR, 
+        res.status(CODE_ERROR).json({  
           success: false,
           message: '验证码不存在'
         })
@@ -611,156 +569,130 @@ function verify_mailcode(req, res, next) {//
               res.json({ 
                 success: false,
                 message: norObj.message
-              })
+              });
             }
           })
-          .catch(errorObj =>{
-            res.json(errorObj);
-          })
+          .catch(errMsg =>{
+            res.json(errMsg);
+          });
         } else {
-          res.json({ 
-            code: CODE_ERROR, 
+          res.status(CODE_ERROR).json({ 
             success: false,
             message: '验证码错误'
-          })
+          });
         }
       }
-    })
-    .catch(errorObj => {
-      res.json(errorObj);
     });
   }, false);
 }
 
-// 修改用户名
-function change_username(req, res, next) {//
+// 修改用户名, 已完成对接、测试
+function change_username(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie, username } = req.body;
     return select_user_id_by_cookie(cookie)
-    .then(usrid =>{
+    .then(usrid => {
       if(usrid.success) {
         let id = usrid.id;
         select_user_by_id(id)
         .then(normalObj => {
           if(normalObj.success) {
-            update_user(id,'user_name',username)
+            if (normalObj.username === username) {
+              res.status(403).json({
+                success: false,
+                message: '新用户名不能和旧用户名相同'
+              });
+            }
+            update_user(id, 'user_name', username)
             .then(result => {
-              res.json({
-                success: result.success,
-                message: result.message
-              })
+              res.json(result);
             })
             .catch(errorObj =>{
-              res.json(errorObj);
+              res.status(CODE_ERROR).json(errorObj);
             });
           } else {
-            res.json({
-              code: CODE_ERROR,
-              success: false,
-              message: normalObj.message
-            });
+            res.status(CODE_ERROR).json(normalObj);
           }
         })
-        .catch(errorObj =>{
+        .catch(errorObj => {
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    }); 
+    });
   }, false);
 }
 
-// 修改密码
+// 修改密码, 已完成对接、测试
 function change_password(req, res, next) {//
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie, passwordCode } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usrid =>{
+      // console.log(usrid);
       if(usrid.success) {
         let id = usrid.id;
-        select_user_by_id(id)
-        .then(normalObj => {
-          if(normalObj.success) {
-            update_user(id,'user_password_hash',passwordCode)
+        select_full_user_by_id(id)
+        .then(norObj => {
+          // console.log(normalObj);
+          if(norObj.success) {
+            let usr = norObj.userInfo;
+            if (usr.user_password_hash === passwordCode) {
+              res.status(403).json({
+                success: false,
+                message: '新密码不能和旧密码相同'
+              });
+            }
+            update_user(id, 'user_password_hash', passwordCode)
             .then(result => {
-              res.json({
-                success: result.success,
-                message: result.message
-              })
+              res.json(result);
             })
-            .catch(errorObj =>{
-              res.json(errorObj);
+            .catch(errObj =>{
+              res.json(errObj);
             });
           } else {
-            res.json({
-              success: false,
-              message: normalObj.message
-            });
+            res.json(norObj);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
 
-// 修改签名
+// 修改签名, 已完成对接、测试
 function change_signature(req, res, next) {//
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie, signature } = req.body;
     return select_user_id_by_cookie(cookie)
-    .then(usrid =>{
+    .then(usrid => {
       if(usrid.success) {
         let id = usrid.id;
         select_user_by_id(id)
         .then(normalObj => {
           if(normalObj.success) {
-            update_user(id,'user_signature',signature)
+            update_user(id, 'user_signature', signature)
             .then(result => {
-              res.json({
-                success: result.success,
-                message: result.message
-              })
+              res.json(result);
             })
             .catch(errorObj =>{
-              res.json(errorObj);
+              res.status(CODE_ERROR).json(errorObj);
             });
           } else {
-            res.json({
-              success: false,
-              message: normalObj.message
-            });
+            res.status(CODE_ERROR).json(normalObj);
           }
         })
-        .catch(errorObj =>{
+        .catch(errorObj => {
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
@@ -840,7 +772,7 @@ function reset_password(req, res, next) {//
         if(normalObj.scene != 2){
           res.json({
             success: false,
-            message: '验证码非忘记密码重置'
+            message: '验证码无效'
           })
         } else {
           select_full_user_by_email(normalObj.mail)
@@ -883,8 +815,8 @@ function reset_password(req, res, next) {//
 // 批量创建账号
 function generate_user(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, usernamePrefix, passwordCode, count} = req.body;
-    select_user_id_by_cookie(cookie)
+    let { cookie, usernamePrefix, passwordCode, count } = req.body;
+    return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
         let id = usrid.id;
@@ -942,99 +874,69 @@ function generate_user(req, res, next) {
   }, false);
 }
 
-// 设置可以注册的邮箱后缀
-function set_mail(req, res, next) {//
+// 设置可以注册的邮箱后缀, 已完成对接、测试
+function set_mail(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie,haveList,suffixList } = req.body;
-    select_user_id_by_cookie(cookie)
-    .then(usrid =>{
+    if (!haveList) {
+      res.json({
+        success: false,
+        message: '当前不开放注册'
+      })
+    }
+    return select_user_id_by_cookie(cookie)
+    .then(usrid => {
       if(usrid.success) {
         let id = usrid.id;
         if(id == 1) {
-          update_global_settings('have_list',haveList)
-          .then(result => {
-            if(result.success){
-              if(haveList) {
-                suffixList = suffixList.replace("[\"",'');
-                suffixList = suffixList.replace("\"]",'');
-                let suflist = suffixList.split('\",\"');
-                insert_email_suffixes(suflist)
-                .then(norObj =>{
-                  res.json({
-                    success: norObj.success,
-                    message: norObj.message
-                  })
-                })
-              } else {
-                res.json({
-                  success: true,
-                  message: '设置成功'
-                })
-              }
-            } else {
-              res.json({
-                success: false,
-                message: result.message
-              })
-            }
+          insert_email_suffixes(suffixList)
+          .then(obj => {
+            res.json(obj);
           })
-          .catch(errorObj => {
-            res.json(errorObj);
+          .catch(err => {
+            res.json(err);
           });
         } else {
-          res.json({
-            code: CODE_ERROR,
+          res.status(CODE_ERROR).json({
             success: false,
             message: '无设置权限'
           })
         }
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
-    
   }, false);
 }
 
 // 移除管理员
 function unmanage(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
-    select_user_id_by_cookie(cookie)
+    let { cookie, id } = req.body;
+    return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
         if(usrid.id == 1) {
           select_user_by_id(id)
           .then(normalObj => {
+            // console.log(normalObj);
             if(normalObj.success) {
               if(normalObj.character != 1) {
                 res.json({
                   success: false,
                   message: '该用户非管理员'
-                })
+                });
               } else {
-                update_user(id,'user_role',3)
+                update_user(id, 'user_role', 3)
                 .then(norObj => {
-                  res.json({ 
-                    success: norObj.success,
-                    message: norObj.message
-                  });
+                  res.json(norObj);
                 })
                 .catch(errorObj => {
                   res.json(errorObj);
                 });
               }
             } else {
-              res.json({
-                success: false,
-                message: normalObj.message
-              })
+              res.json(normalObj);
             }
           })
           .catch(errorObj =>{
@@ -1044,54 +946,43 @@ function unmanage(req, res, next) {
           res.json({
             success: false,
             message: '无移除管理员权限'
-          })
+          });
         }
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
 
 // 设置管理员
-function manage(req, res, next) {//
+function manage(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
-    select_user_id_by_cookie(cookie)
+    let { cookie, id } = req.body;
+    return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
         if(usrid.id == 1) {
           select_user_by_id(id)
           .then(normalObj => {
+            // console.log(normalObj);
             if(normalObj.success) {
               if(normalObj.character == 0) {
                 res.json({
                   success: false,
-                  message: 'root用户不可设置'
-                })
+                  message: 'root 用户不可设置'
+                });
               } else {
-                update_user(id,'user_role',1)
+                update_user(id, 'user_role', 1)
                 .then(norObj => {
-                  res.json({ 
-                    success: norObj.success,
-                    message: norObj.message
-                  });
+                  res.json(norObj);
                 })
                 .catch(errorObj => {
                   res.json(errorObj);
                 });
               }
             } else {
-              res.json({
-                success: false,
-                message: normalObj.message
-              });
+              res.json(normalObj);
             }
           })
           .catch(errorObj =>{
@@ -1104,22 +995,16 @@ function manage(req, res, next) {//
           });
         }
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
 
 // 移除受信用户
-function untrust(req, res, next) {//
+function untrust(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
+    let { cookie, id } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
@@ -1129,8 +1014,8 @@ function untrust(req, res, next) {//
           {
             if(usr.character > 1) {
               res.json({ 
-                success: true,
-                message: '无设置权限'
+                success: false,
+                message: '无移除受信用户权限'
               });
             } else {
               select_user_by_id(id)
@@ -1142,52 +1027,37 @@ function untrust(req, res, next) {//
                       message: '该用户非受信用户'
                     })
                   } else {
-                    update_user(id,'user_role',3)
+                    update_user(id, 'user_role', 3)
                     .then(norObj => {
-                      res.json({ 
-                        success: norObj.success,
-                        message: norObj.message
-                      })
+                      res.json(norObj);
                     })
                     .catch(errorObj =>{
                       res.json(errorObj);
                     });
                   }
                 } else {
-                  res.json({
-                    success: false,
-                    message: normalObj.message
-                  });
+                  res.json(normalObj);
                 }
               });
             }
           } else {
-            res.json({ 
-              success: false,
-              message: usr.message
-            });
+            res.json(usr);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
     })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    });
   }, false);
 }
 
 // 设置受信用户
-function trust(req, res, next) {//
+function trust(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
+    let { cookie, id } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
@@ -1197,8 +1067,8 @@ function trust(req, res, next) {//
           {
             if(usr.character > 1) {
               res.json({ 
-                success: true,
-                message: '无设置权限'
+                success: false,
+                message: '无设置受信用户权限'
               });
             } else {
               select_user_by_id(id)
@@ -1210,52 +1080,37 @@ function trust(req, res, next) {//
                       message: '该用户非普通用户'
                     })
                   } else {
-                    update_user(id,'user_role',2)
+                    update_user(id, 'user_role', 2)
                     .then(norObj => {
-                      res.json({ 
-                        success: norObj.success,
-                        message: norObj.message
-                      })
+                      res.json(norObj);
                     })
                     .catch(errorObj =>{
                       res.json(errorObj);
                     });
                   }
                 } else {
-                  res.json({
-                    success: false,
-                    message: normalObj.message
-                  });
+                  res.json(normalObj);
                 }
               });
             }
           } else {
-            res.json({ 
-              success: false,
-              message: usr.message
-            });
+            res.json(usr);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
     })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    });
   }, false);
 }
 
 // 解除封禁
-function unban(req, res, next) {//
+function unban(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
+    let { cookie, id } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
@@ -1265,8 +1120,8 @@ function unban(req, res, next) {//
           {
             if(usr.character > 1) {
               res.json({ 
-                success: true,
-                message: '无设置权限'
+                success: false,
+                message: '无解除封禁用户权限'
               });
             } else {
               select_user_by_id(id)
@@ -1278,52 +1133,37 @@ function unban(req, res, next) {//
                       message: '该用户非封禁用户'
                     })
                   } else {
-                    update_user(id,'user_role',3)
+                    update_user(id, 'user_role', 4)
                     .then(norObj => {
-                      res.json({ 
-                        success: norObj.success,
-                        message: norObj.message
-                      })
+                      res.json(norObj);
                     })
                     .catch(errorObj =>{
                       res.json(errorObj);
                     });
                   }
                 } else {
-                  res.json({
-                    success: false,
-                    message: normalObj.message
-                  });
+                  res.json(normalObj);
                 }
               });
             }
           } else {
-            res.json({ 
-              success: false,
-              message: usr.message
-            });
+            res.json(usr);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
     })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    });
   }, false);
 }
 
 // 封禁用户
-function ban(req, res, next) {//
+function ban(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id} = req.body;
+    let { cookie, id } = req.body;
     return select_user_id_by_cookie(cookie)
     .then(usrid =>{
       if(usrid.success) {
@@ -1333,8 +1173,8 @@ function ban(req, res, next) {//
           {
             if(usr.character > 1) {
               res.json({ 
-                success: true,
-                message: '无设置权限'
+                success: false,
+                message: '无设置封禁用户权限'
               });
             } else {
               select_user_by_id(id)
@@ -1343,48 +1183,33 @@ function ban(req, res, next) {//
                   if(normalObj.character < 2) {
                     res.json({ 
                       success: false,
-                      message: '该用户为管理员或root,不可封禁'
+                      message: '该用户为管理员或 root, 不可封禁'
                     })
                   } else {
-                    update_user(id,'user_role',4)
+                    update_user(id, 'user_role', 4)
                     .then(norObj => {
-                      res.json({ 
-                        success: norObj.success,
-                        message: norObj.message
-                      })
+                      res.json(norObj);
                     })
                     .catch(errorObj =>{
                       res.json(errorObj);
                     });
                   }
                 } else {
-                  res.json({
-                    success: false,
-                    message: normalObj.message
-                  });
+                  res.json(normalObj);
                 }
               });
             }
           } else {
-            res.json({ 
-              success: false,
-              message: usr.message
-            });
+            res.json(usr);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
     })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    });
   }, false);
 }
 
@@ -1402,9 +1227,9 @@ function createSessionId() {
   return formatedUUID;
 }
 
-function InsertUsers(usernamePrefix,passwordCode,i,count) {
-  let user_name = usernamePrefix+i.toString();
-  insert_user(user_name,passwordCode,null,3,null)
+function InsertUsers(usernamePrefix, passwordCode, i, count) {
+  let user_name = usernamePrefix + i.toString();
+  return insert_user(user_name,passwordCode,null,3,null)
   .then(user => {
     if (!user.success) {
       return {
@@ -1418,7 +1243,7 @@ function InsertUsers(usernamePrefix,passwordCode,i,count) {
           success: true
         };
       } else {
-        return InsertUsers(usernamePrefix,passwordCode,i+1,count);
+        return InsertUsers(usernamePrefix, passwordCode, i + 1, count);
       }
     }
   })
@@ -1437,18 +1262,18 @@ module.exports = {
   mail_suffux_list,
   mail_changetime,
   username_changetime,
-  login,
+  login,               // x
   logout,
   allow_register,
-  register,
+  register,            // x
   prepare_mailcode,
   verify_mailcode,
   change_username,
   change_password,
   change_signature,
-  change_email,
-  reset_password,
-  generate_user,
+  change_email,        // x
+  reset_password,      // x
+  generate_user,       // x
   set_mail,
   unmanage,
   manage,
