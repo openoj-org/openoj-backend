@@ -249,14 +249,15 @@ function insert_user(name, passwordHash, mail, role, signature)
 
 function update_user(id, param, value)
 {
-	let sql = `UPDATE users SET ${param} = ${value}`;
+	let padding = ((typeof(value) == 'number') ? '' : '"');
+	let sql = 'UPDATE users SET ' + param + ' = ' +
+	          padding + value + padding;
 	if (param == 'user_name') {
-		sql += `, user_name_change_time = ${new Date().getTime()}`;
+		sql += ', user_name_change_time = ' + new Date().getTime();
 	} else if (param == 'user_email') {
-		sql += `, user_email_change_time = ${new Date().getTime()}`;
+		sql += ', user_email_change_time = ' + new Date().getTime();
 	}
-	sql += ` WHERE user_id = ${id};`;
-
+	sql += ' WHERE user_id = ' + id + ';';
 	return querySql(sql)
 	.then(result => {
 		return {

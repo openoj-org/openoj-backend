@@ -33,7 +33,7 @@ function select_mail_code_by_mail(mail) {
 				success: true,
 				message: '获取邮箱验证码成功',
 				// 验证码 id
-				id: mailCode.mail_code_id,
+				id: mailCode.mail_session_id,
 				// 验证码生成后经过的毫秒数
 				generateTime: new Date().getTime() - mailCode.mail_code_generate_time,
 				// 验证码内容
@@ -112,6 +112,8 @@ function select_mail_code_by_success_session_id(id) {
 			return {
 				success: true,
 				message: '获取会话成功',
+				// 
+				id: mailCode.mail_session_id,
 				// 验证码生成后经过的毫秒数
 				generateTime: new Date().getTime() - mailCode.mail_code_generate_time,
 				// 验证码对应邮箱
@@ -170,7 +172,7 @@ function update_mail_code(id, code_number) {
 
 function delete_mail_code(id)
 {
-	return querySql(`DELETE FROM mail_sessions WHERE mail_session_id = ${id};`)
+	return querySql(`DELETE FROM mail_sessions WHERE mail_session_id = '${id}';`)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,

@@ -372,7 +372,7 @@ function register(req, res, next) {
       if(allowregister.success) {
         if(allowregister.allowRegister) {
           let { sessionId, username, passwordCode, signature} = req.body;
-          console.log(req.body);
+          // console.log(req.body);
           if(username.length < 3 || username.length > 20 || signature.length > 100) {
             if(username.length < 3 || username.length > 20) {
               res.json({
@@ -608,14 +608,15 @@ function change_username(req, res, next) {
                 success: false,
                 message: '新用户名不能和旧用户名相同'
               });
+            } else {
+              update_user(id, 'user_name', username)
+              .then(result => {
+                res.json(result);
+              })
+              .catch(errorObj =>{
+                res.status(CODE_ERROR).json(errorObj);
+              });
             }
-            update_user(id, 'user_name', username)
-            .then(result => {
-              res.json(result);
-            })
-            .catch(errorObj =>{
-              res.status(CODE_ERROR).json(errorObj);
-            });
           } else {
             res.status(CODE_ERROR).json(normalObj);
           }
@@ -649,14 +650,15 @@ function change_password(req, res, next) {//
                 success: false,
                 message: '新密码不能和旧密码相同'
               });
+            } else {
+              update_user(id, 'user_password_hash', passwordCode)
+              .then(result => {
+                res.json(result);
+              })
+              .catch(errObj =>{
+                res.json(errObj);
+              });
             }
-            update_user(id, 'user_password_hash', passwordCode)
-            .then(result => {
-              res.json(result);
-            })
-            .catch(errObj =>{
-              res.json(errObj);
-            });
           } else {
             res.json(norObj);
           }
@@ -717,83 +719,78 @@ function change_email(req, res, next) {
             select_mail_code_by_success_session_id(sessionId)
             .then(norObj => {
               if(norObj.success) {
-                if(norObj.scene != 1) {
+                // 验证码类型错误, 或超过 10 分钟
+                if(norObj.scene != 1 || norObj.generateTime > 600000) {
                   res.json({
                     success: false,
-                    message: '验证码无效'
-                  })
+                    message: '验证码过期或无效，请重新发送'
+                  });
                 } else {
-                  update_user(id,'user_email',norObj.mail)
+                  update_user(id, 'user_email', norObj.mail)
                   .then(result => {
                     res.json(result);
                   })
-                  .catch(err =>{
+                  .catch(err => {
                     res.json(err);
                   });
                 }
+                delete_mail_code(norObj.id);
               } else {
                 res.status(CODE_ERROR).json(norObj);
               }
             })
             .catch(errObj =>{
-              res.json(errObj);
+              res.status(CODE_ERROR).json(errObj);
             });
           } else {
-            res.json(normalObj);
+            res.status(CODE_ERROR).json(normalObj);
           }
         })
         .catch(errorObj =>{
-          res.json(errorObj);
+          res.status(CODE_ERROR).json(errorObj);
         });
       } else {
-        res.json(usrid);
+        res.status(CODE_ERROR).json(usrid);
       }
     });
   }, false);
 }
 
 // 忘记密码后重置
-function reset_password(req, res, next) {//
+function reset_password(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { sessionId, passwordCode } = req.body;
     return select_mail_code_by_success_session_id(sessionId)
     .then(normalObj => {
       if(normalObj.success) {
-        if(normalObj.scene != 2){
+        // 验证码类型错误, 或超过 10 分钟
+        if(normalObj.scene != 2 || normalObj.generateTime > 600000){
           res.json({
             success: false,
             message: '验证码无效'
-          })
+          });
         } else {
           select_full_user_by_email(normalObj.mail)
           .then(norObj => {
             if(norObj.success) {
               update_user(norObj.userInfo.user_id,'user_password_hash',passwordCode)
               .then(result => {
-                res.json({
-                  success: result.success,
-                  message: result.message
-                })
+                res.json(result);
               })
-              .catch(errorObj =>{
-                res.json(errorObj);
+              .catch(errObj => {
+                res.json(errObj);
               });
             } else {
-              res.json({
-                success: false,
-                message: norObj.message
-              })
+              res.json(norObj);
             }
           })
-          .catch(errorObj =>{
+          .catch(errorObj => {
             res.json(errorObj);
           });
         }
+        delete_mail_code(normalObj.id);
       } else {
-        res.json({
-          success: false,
-        	message: normalObj.message
-        });
+        res.json(normalObj);
       }
     });
   }, false);
@@ -801,95 +798,105 @@ function reset_password(req, res, next) {//
 
 // 批量创建账号
 function generate_user(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, usernamePrefix, passwordCode, count } = req.body;
-    return select_user_id_by_cookie(cookie)
-    .then(usrid =>{
-      if(usrid.success) {
-        let id = usrid.id;
-        if(id == 1) {
-          select_users_by_param_order(1,1,usernamePrefix)
-          .then(result => {
-            if(result.success) {
-              let regexp = new RegExp("^" + usernamePrefix);
-              for(var j = 0 ; j < result.count ; j++) {
-                let usrname = result.result[j].username;
-                usrname = usrname.replace(regexp,'');
-                let num = parseInt(usrname);
-                if(num.toString === usrname && 1 <= num && num <= count)
-                {
-                  res.json({
-                    success: false,
-                    message: "用户名" +result.result[j].username +"已被占用"
-                  })
+  let { count } = req.body;
+  if (count <= 0) {
+    res.json({
+      success: false,
+      message: "用户数量需大于 0"
+    });
+  } else {
+    validateFunction(req, res, next, (req, res, next) => {
+      let { cookie, usernamePrefix, passwordCode, count } = req.body;
+      return select_user_id_by_cookie(cookie)
+      .then(usrid => {
+        if (usrid.success) {
+          select_user_by_id(usrid.id)
+          .then(usrInfo => {
+            if (usrInfo.success && usrInfo.character == 0) {
+              select_users_by_param_order('user_name', true, usernamePrefix)
+              .then(result => {
+                
+                if(result.success) {
+                  let regexp = new RegExp("^" + usernamePrefix);
+                  for(var index = 0; index < result.count; index++) {
+                    // console.log(1);
+                    let usrname = result.result[index].username;
+                    usrname = usrname.replace(regexp,'');
+                    let num = parseInt(usrname);
+                    if(num.toString() === usrname && 1 <= num && num <= count) {
+                      res.json({
+                        success: false,
+                        message: `用户名${usernamePrefix}${num}已被占用`
+                      });
+                      return;
+                    }
+                  }
                 }
-              }
-            }
-            if(count <= 0) {
+                InsertUsers(usernamePrefix, passwordCode, 1, count)
+                .then(norObj => {
+                  res.json(norObj);
+                })
+                .catch(errObj => {
+                  res.json(errObj);
+                })
+                
+              })
+              .catch(err => {
+                res.json(err);
+              })
+            } else {
               res.json({
                 success: false,
-                message: "用户数量需大于0"
-              })
-              return;
+                message: '用户凭证无效'
+              });
             }
-            let ret = InsertUsers(usernamePrefix,passwordCode,1,count);
-            res.json({
-              message: ret.message, 
-              success: ret.success
-            });
           })
-          .catch(errorObj =>{
-            res.json(errorObj);
-          });
+          .catch(err => {
+            res.status(CODE_ERROR).json(err);
+          })
         } else {
-          res.json({
-            success: false,
-            message: '无批量创建权限'
-          })
+          res.json(usrid);
         }
-      } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
-      }
-    });
-  }, false);
+      });
+    }, false);
+  }
 }
 
 // 设置可以注册的邮箱后缀, 已完成对接、测试
 function set_mail(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    let { cookie,haveList,suffixList } = req.body;
-    if (!haveList) {
-      res.json({
-        success: false,
-        message: '当前不开放注册'
-      })
-    }
-    return select_user_id_by_cookie(cookie)
-    .then(usrid => {
-      if(usrid.success) {
-        let id = usrid.id;
-        if(id == 1) {
-          insert_email_suffixes(suffixList)
-          .then(obj => {
-            res.json(obj);
-          })
-          .catch(err => {
-            res.json(err);
-          });
-        } else {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: '无设置权限'
-          })
-        }
-      } else {
-        res.json(usrid);
-      }
+  let { haveList } = req.body;
+  if (!haveList) {
+    res.json({
+      success: false,
+      message: '当前不开放注册'
     });
-  }, false);
+  } else {
+    validateFunction(req, res, next, (req, res, next) => {
+      let { cookie, suffixList } = req.body;
+      return select_user_id_by_cookie(cookie)
+      .then(usrid => {
+        if(usrid.success) {
+          let id = usrid.id;
+          if(id == 1) {
+            insert_email_suffixes(suffixList)
+            .then(obj => {
+              res.json(obj);
+            })
+            .catch(err => {
+              res.json(err);
+            });
+          } else {
+            res.status(CODE_ERROR).json({
+              success: false,
+              message: '无设置权限'
+            })
+          }
+        } else {
+          res.json(usrid);
+        }
+      });
+    }, false);
+  }
 }
 
 // 移除管理员
@@ -1206,21 +1213,18 @@ function createSixNum() {
 
 function createSessionId() {
   var formatedUUID = uuidv1();
-  console.log(formatedUUID)
+  // console.log(formatedUUID)
   return formatedUUID;
 }
 
 function InsertUsers(usernamePrefix, passwordCode, i, count) {
-  let user_name = usernamePrefix + i.toString();
-  return insert_user(user_name,passwordCode,null,3,null)
+  let userName = usernamePrefix + i.toString();
+  return insert_user(userName, passwordCode, userName + '@openoj.com', 3, null)
   .then(user => {
     if (!user.success) {
-      return {
-        message: user.message, 
-        success: false
-      };
+      return user;
     } else {
-      if( i >= count ) {
+      if (i >= count) {
         return {
           message: '批量添加用户成功', 
           success: true
@@ -1229,12 +1233,6 @@ function InsertUsers(usernamePrefix, passwordCode, i, count) {
         return InsertUsers(usernamePrefix, passwordCode, i + 1, count);
       }
     }
-  })
-  .catch(errorObj =>{
-    return {
-      message: errorObj.message, 
-      success: false
-    };
   });
 };
 
@@ -1254,9 +1252,9 @@ module.exports = {
   change_username,
   change_password,
   change_signature,
-  change_email,        // x
-  reset_password,      // x
-  generate_user,       // x
+  change_email,
+  reset_password,
+  generate_user,
   set_mail,
   unmanage,
   manage,
