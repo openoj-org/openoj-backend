@@ -222,7 +222,7 @@ function login(req, res, next) {
           select_full_user_by_id(userObj.id)
           .then(norObj => {
             if (norObj.success) {
-              cookienum = createSessionId();
+              let cookienum = createSessionId();
               insert_cookie(userObj.id,cookienum)
               .then(result => {
                 if(result.success) {
@@ -835,7 +835,6 @@ function generate_user(req, res, next) {
                     success: false,
                     message: "用户名" +result.result[j].username +"已被占用"
                   })
-                  return;
                 }
               }
             }
