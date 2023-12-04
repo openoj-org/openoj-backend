@@ -159,9 +159,6 @@ function mail_changetime(req, res, next) {
           message: usrid.message
         });
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
@@ -194,9 +191,6 @@ function username_changetime(req, res, next) {
           message: usrid.message
         });
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
@@ -222,25 +216,32 @@ function login(req, res, next) {
           select_full_user_by_id(userObj.id)
           .then(norObj => {
             if (norObj.success) {
-              let cookienum = createSessionId();
-              insert_cookie(userObj.id,cookienum)
-              .then(result => {
-                if(result.success) {
-                  res.json({
-                    success: true,
-                    message: '登录成功',
-                    username: norObj.userInfo.user_name,
-                    character: norObj.userInfo.user_role,
-                    id: userObj.id,
-                    cookie: cookienum
-                  })
-                } else {
-                  res.status(CODE_ERROR).json({
-                    success: false,
-                    message: result.message
-                  });
-                }
-              });
+              if (norObj.userInfo.user_role == 4) {
+                res.status(403).json({
+                  success: false,
+                  message: '封禁用户禁止登录'
+                });
+              } else {
+                let cookienum = createSessionId();
+                insert_cookie(userObj.id, cookienum)
+                .then(result => {
+                  if(result.success) {
+                    res.json({
+                      success: true,
+                      message: '登录成功',
+                      username: norObj.userInfo.user_name,
+                      character: norObj.userInfo.user_role,
+                      id: userObj.id,
+                      cookie: cookienum
+                    })
+                  } else {
+                    res.status(CODE_ERROR).json({
+                      success: false,
+                      message: result.message
+                    });
+                  }
+                });
+              }
             } else {
               res.status(CODE_ERROR).json({
                 success: false,
@@ -270,25 +271,32 @@ function login(req, res, next) {
             select_full_user_by_id(userObj.id)
             .then(norObj => {
               if (norObj.success) {
-                let cookienum = createSessionId();
-                insert_cookie(userObj.id,cookienum)
-                .then(result => {
-                  if(result.success) {
-                    res.json({
-                      success: true,
-                      message: '登录成功',
-                      username: norObj.userInfo.user_name,
-                      character: norObj.userInfo.user_role,
-                      id: userObj.id,
-                      cookie: cookienum
-                    })
-                  } else {
-                    res.status(CODE_ERROR).json({
-                      success: false,
-                      message: result.message
-                    });
-                  }
-                });
+                if (norObj.userInfo.user_role == 4) {
+                  res.status(403).json({
+                    success: false,
+                    message: '封禁用户禁止登录'
+                  });
+                } else {
+                  let cookienum = createSessionId();
+                  insert_cookie(userObj.id,cookienum)
+                  .then(result => {
+                    if(result.success) {
+                      res.json({
+                        success: true,
+                        message: '登录成功',
+                        username: norObj.userInfo.user_name,
+                        character: norObj.userInfo.user_role,
+                        id: userObj.id,
+                        cookie: cookienum
+                      })
+                    } else {
+                      res.status(CODE_ERROR).json({
+                        success: false,
+                        message: result.message
+                      });
+                    }
+                  });
+                }
               } else {
                 res.status(CODE_ERROR).json({
                   success: false,
@@ -306,10 +314,7 @@ function login(req, res, next) {
         });
       }
     })
-    .catch(errorObj => {
-      res.json(errorObj);
-    });
-  });
+  }, false);
 }
 
 // 退出登录, 已完成对接、测试
@@ -367,6 +372,7 @@ function register(req, res, next) {
       if(allowregister.success) {
         if(allowregister.allowRegister) {
           let { sessionId, username, passwordCode, signature} = req.body;
+          console.log(req.body);
           if(username.length < 3 || username.length > 20 || signature.length > 100) {
             if(username.length < 3 || username.length > 20) {
               res.json({
@@ -698,7 +704,7 @@ function change_signature(req, res, next) {//
 }
 
 // 修改邮箱
-function change_email(req, res, next) {//
+function change_email(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie, sessionId } = req.body;
     return select_user_id_by_cookie(cookie)
@@ -714,50 +720,34 @@ function change_email(req, res, next) {//
                 if(norObj.scene != 1) {
                   res.json({
                     success: false,
-                    message: '验证码非更换邮箱的验证码'
+                    message: '验证码无效'
                   })
                 } else {
                   update_user(id,'user_email',norObj.mail)
                   .then(result => {
-                    res.json({
-                      success: result.success,
-                      message: result.message
-                    })
+                    res.json(result);
                   })
-                  .catch(errorObj =>{
-                    res.json(errorObj);
+                  .catch(err =>{
+                    res.json(err);
                   });
                 }
               } else {
-                res.json({
-                  code: CODE_ERROR,
-                  success: false,
-                  message: norObj.message
-                })
+                res.status(CODE_ERROR).json(norObj);
               }
             })
-            .catch(errorObj =>{
-              res.json(errorObj);
+            .catch(errObj =>{
+              res.json(errObj);
             });
           } else {
-            res.json({
-              success: false,
-              message: normalObj.message
-            });
+            res.json(normalObj);
           }
         })
         .catch(errorObj =>{
           res.json(errorObj);
         });
       } else {
-        res.json({
-          success: false,
-          message: usrid.message
-        })
+        res.json(usrid);
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
@@ -805,10 +795,7 @@ function reset_password(req, res, next) {//
         	message: normalObj.message
         });
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    })
+    });
   }, false);
 }
 
@@ -866,9 +853,6 @@ function generate_user(req, res, next) {
           message: usrid.message
         })
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
     });
   }, false);
 }
@@ -1261,10 +1245,10 @@ module.exports = {
   mail_suffux_list,
   mail_changetime,
   username_changetime,
-  login,               // x
+  login,
   logout,
   allow_register,
-  register,            // x
+  register,
   prepare_mailcode,
   verify_mailcode,
   change_username,

@@ -235,14 +235,14 @@ function insert_user(name, passwordHash, mail, role, signature)
 			success: result.affectedRows != 0,
 			message: (result.affectedRows != 0) ? '注册成功' : '注册失败',
 			// 自动生成的用户 id
-			id: insertId
+			id: (result.affectedRows != 0) ? result.insertId : undefined
 		};
 	})
 	.catch(err => {
 		return {
 			success: false,
 			message: err.message,
-			id: null
+			id: undefined
 		};
 	});
 }
