@@ -16,6 +16,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(cors());
 app.use(cookieParser('signText'));
 app.use('/', routes);
+app.use('/static', express.static(__dirname + '/static'));
 
 app.listen(8088, () => {
 	select_user_by_id(1)
