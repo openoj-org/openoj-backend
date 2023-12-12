@@ -232,11 +232,41 @@ module.exports = {
 	 * 　　  } 的 Promise 对象
 	 */
     select_problems_by_param_order,
-    // 创建题目
+    /* 参数: id,
+	 * 　　  title,
+	 * 　　  titleEn,
+	 * 　　  type,
+	 * 　　  timeLimit,
+	 * 　　  memoryLimit,
+	 * 　　  background,
+	 * 　　  statement,
+	 * 　　  inputStatement,
+	 * 　　  outputStatement,
+	 * 　　  rangeAndHint,
+	 * 　　  source
+	 * 作用: 返回包含表示创建题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
     insert_problem,
-    // 修改题目
+    /* 参数: id,
+	 * 　　  param,
+	 * 　　  value
+	 * 作用: 返回包含表示修改题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
     update_problem,
-    // 删除题目
+    /* 参数: id
+	 * 作用: 返回包含表示删除题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
     delete_problem
-    
 };
