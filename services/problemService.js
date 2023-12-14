@@ -57,7 +57,21 @@ function problem_list(req, res, next) {
 // 获取题目信息
 function problem_info(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    // TODO
+    let {id, evaluation, cookie} = req.body;
+    select_problemInfo_by_id(id)
+    .then(result =>{
+      if(result.success) {
+        
+      } else {
+        res.json({
+          success: false,
+          message: result.message
+        })
+      }
+    })
+    .catch(errorObj =>{
+      res.json(errorObj);
+    })
   }, false);
 }
 
@@ -128,22 +142,22 @@ function problem_change_by_file(req, res, next) {
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let summary = ReadFile(fileStoragePath+"/question/summary.txt");
-          let background = ReadFile(fileStoragePath+"/question/题目背景.md");
-          let description = ReadFile(fileStoragePath+"/question/题目描述.md");
-          let inputStatement = ReadFile(fileStoragePath+"/question/输入格式.md");
-          let outputStatement = ReadFile(fileStoragePath+"/question/输出格式.md");
-          let rangeAndHint = ReadFile(fileStoragePath+"/question/数据范围与提示.md");
+          let background = ReadFile(fileStoragePath+"/question/background.md");
+          let description = ReadFile(fileStoragePath+"/question/description.md");
+          let inputStatement = ReadFile(fileStoragePath+"/question/inputStatement.md");
+          let outputStatement = ReadFile(fileStoragePath+"/question/outputStatement.md");
+          let rangeAndHint = ReadFile(fileStoragePath+"/question/rangeAndHint.md");
           if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
             fs.unlinkSync(fileStoragePath+"/question");
             summary = summary.message.split(/\r?\n/);
             update_question( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
             .then(normalObj => {
               if(normalObj.success) {
-                let { arry, row, col} = decodeXlsx(fileStoragePath+"/data/config.xlsx");
+                let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
                 delete_samples_by_question_id(id.toString())
                 .then(normalObj => {
                   if(normalObj.success) {
-                    let norObj = InsertSamples(arry,5,row,id,fileStoragePath+"/data/");
+                    let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
                     if(norObj.success) {
                       res.json({
                         success: true,
@@ -211,11 +225,11 @@ function problem_change_data(req, res, next) {
           fs.unlinkSync(fileStoragePath+"/data");
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
-          let { arry, row, col} = decodeXlsx(fileStoragePath+"/data/config.xlsx");
+          let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
           delete_samples_by_question_id(id.toString())
           .then(normalObj => {
             if(normalObj.success) {
-              let norObj = InsertSamples(arry,5,row,id,fileStoragePath+"/data/");
+              let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
               if(norObj.success) {
                 res.json({
                   success: true,
@@ -310,8 +324,8 @@ function problem_create_by_file(req, res, next) {
             insert_question( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
             .then(normalObj => {
               if(normalObj.success) {
-                let { arry, row, col} = decodeXlsx(fileStoragePath+"/data/config.xlsx");
-                let norObj = InsertSamples(arry,5,row,id,fileStoragePath+"/data/");
+                let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
+                let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
                 if(norObj.success) {
                   res.json({
                     success: true,
@@ -371,8 +385,8 @@ function problem_create(req, res, next) {
               let fileStoragePath = "./static/官方题库/"+id;
               unzip(file.path,fileStoragePath);
               fs.unlinkSync(file.path);
-              let { arry, row, col} = decodeXlsx(fileStoragePath+"/data/config.xlsx");
-              let norObj = InsertSamples(arry,5,row,id,fileStoragePath+"/data/");
+              let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
+              let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
               if(norObj.success) {
                 res.json({
                   success: true,
@@ -421,7 +435,7 @@ function InsertSamples(arry, i, n, problemid, filepath) {
     // arry[i][3] : 输出文件名   
     // arry[i][5] : 样例属性
     if( haveinput && haveoutput) {
-      return insert_samples(samplesid, problemid, arry[i][5], arry[i][0], arry[i][1], arry[i][2], arry[i][3])
+      return insert_samples(samplesid, problemid, parseInt(arry[i][5]), arry[i][0], arry[i][1], arry[i][2], arry[i][3])
       .then(result => {
         if(result.success) {
           return InsertSamples(arry,i+1,n,problemid);
@@ -535,27 +549,21 @@ function unzip(zipFile, destFolder){
   zip.extractAllTo(destFolder, true);
 }
 
-function decodeXlsx(xlsxpath){
-  let ret = new Array();
-  let workbook = xlsx.readFile(xlsxpath);
-  let sheetNames = workbook.SheetNames;
-  let sheet1 = workbook.Sheets[sheetNames[0]];
-  let range = xlsx.utils.decode_range(sheet1['!ref']);
-  let i = 0 ;
-  let j = 0 ;
-  for (let R = range.s.r; R <= range.e.r; ++R , ++i) {
-      ret[i] = new Array();
-      for (let C = range.s.c; C <= range.e.c; ++C , ++j) {
-          let cell = xlsx.utils.encode_cell({c: C, r: R});
-          if (sheet1[cell]) {
-          ret[i][j] = sheet1[cell].v;
-          }
-      }
+function decodeConfig(filepath){
+  let config = ReadFile(filepath);
+  config = config.message.split(/\r?\n/);
+  let ret = [];
+  ret[0] = config[0].split(/\s/);
+  let row = parseInt(ret[0][2]);
+  let n = 0;
+  for(var i=1; n<row; i++) {
+    if(config[i] == '') continue;
+    n++;
+    ret[n] = config[i].split(/\s/);
   }
   return {
     arry: ret,
-    row: i,
-    col: j
+    row: n
   }
 }
 
