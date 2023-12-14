@@ -61,7 +61,7 @@ function select_official_problem_by_id(id) {
 	});
 }
 
-function select_problems_by_param_order(
+function select_official_problems_by_param_order(
 	order, increase, titleKeyword, sourceKeyword, start, end
 ) {
 	let sql = 'SELECT * FROM official_problems WHERE problem_name LIKE "';
@@ -109,7 +109,7 @@ function select_problems_by_param_order(
 	});
 }
 
-function insert_problem(
+function insert_official_problem(
 	id, title, titleEn, type, timeLimit, memoryLimit,
 	background, statement, inputStatement,
 	outputStatement, rangeAndHint, source) {
@@ -137,7 +137,7 @@ function insert_problem(
 	});
 }
 
-function update_problem(id, param, value) {
+function update_official_problem(id, param, value) {
     let sql = ('UPDATE official_problems SET ' + param + ' = ' +
 	           value + ' WHERE problem_id = ' + id);
 	return querySql(sql)
@@ -155,7 +155,7 @@ function update_problem(id, param, value) {
 	});
 }
 
-function delete_problem(id) {
+function delete_official_problem(id) {
 	return querySql(`DELETE FROM official_problems WHERE problem_id = '${id}';`)
 	.then(result => {
 		return {
@@ -231,7 +231,7 @@ module.exports = {
 	 * 　　      count          // int, 表示题目数
 	 * 　　  } 的 Promise 对象
 	 */
-    select_problems_by_param_order,
+    select_official_problems_by_param_order,
     /* 参数: id,
 	 * 　　  title,
 	 * 　　  titleEn,
@@ -250,7 +250,7 @@ module.exports = {
 	 * 　　      message        // string, 表示返回的消息
 	 * 　　  } 的 Promise 对象
 	 */
-    insert_problem,
+    insert_official_problem,
     /* 参数: id,
 	 * 　　  param,
 	 * 　　  value
@@ -260,7 +260,7 @@ module.exports = {
 	 * 　　      message        // string, 表示返回的消息
 	 * 　　  } 的 Promise 对象
 	 */
-    update_problem,
+    update_official_problem,
     /* 参数: id
 	 * 作用: 返回包含表示删除题目结果的一个对象 {
 	 * 　　      // 以下为必有项
@@ -268,5 +268,5 @@ module.exports = {
 	 * 　　      message        // string, 表示返回的消息
 	 * 　　  } 的 Promise 对象
 	 */
-    delete_problem
+    delete_official_problem
 };

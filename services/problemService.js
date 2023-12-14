@@ -5,7 +5,7 @@ const boom = require('boom');
 const { body, validationResult, Result } = require('express-validator');
 const { 
   CODE_ERROR,
-  CODE_SUCCESS,
+  CODE_SUCCESS
 } = require('../utils/constant');
 // const {  } = require('../CURDs/problemCURD');
 // const { error } = require('console');
@@ -39,30 +39,71 @@ function validateFunction(req, res, next, func, isDefault) {
 }
 // 获取题目样例文件
 function problem_samples(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    // TODO
-  }, false);
+  // validateFunction(req, res, next, (req, res, next) => {
+  //   // TODO
+  // }, false);
 }
 
 // 获取题目列表
 function problem_list(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    // TODO
-  }, false);
+  res.json({
+    "success": true,
+    "message": "未知错误",
+    "result": [{
+        "id": "U9riowjk",
+        "title": "归程",
+        "source": "NOI2018",
+        "submit": 1088,
+        "pass": 0.618,
+        "score": 70,
+        "grade": 3.465,
+        "tags": ["树状数组", "贪心", "思维"]
+    }],
+    "count": 100
+  });
+  // validateFunction(req, res, next, (req, res, next) => {
+  //   // TODO
+  // }, false);
+  /*await select_problem_list */
 }
 
 // 获取题目信息
 function problem_info(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    // TODO
-  }, false);
+  res.json({
+    "success": true,
+    "message": "id不合法",
+    "title": "归程",
+    "source": "NOI2018",
+    "submit": 1088,
+    "pass": 0.618,
+    "score": 70,
+    "grade": 3.465,
+    "tags": ["树状数组", "贪心", "思维"],
+    "titleEn": "return",
+    "type": 0,
+    "timeLimit": 1000,
+    "memoryLimit": 512,
+    "background": "有一天你时空穿越了...",
+    "statement": "*欢迎*来到**编程世界**。这是一道~~模板题目~~，请你输出`Hello, world!`。",
+    "inputStatement": "本题没有输入，但是可以测试公式$\\frac{1}{2}$，还有$f(x)=\\sum_{k\\geq 0}\\frac{f^{(k)}(x_0)}{k!}(x-x_0)^k$。",
+    "outputStatement": "输出一行`Hello, world!`。",
+    "rangeAndHint": "本题没有数据范围。但是，我们还是可以测试一下如果描述变得很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长，那么会怎么分行？",
+    "samples": [{
+        "display": true,
+        "input": "1 2",
+        "output": "3"
+    }]
+  });
+  // validateFunction(req, res, next, (req, res, next) => {
+  //   // TODO
+  // }, false);
 }
 
 // 删除题目
 function problem_delete(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    // TODO
-  }, false);
+  // validateFunction(req, res, next, (req, res, next) => {
+  //   // TODO
+  // }, false);
 }
 
 // 用文件修改题目
