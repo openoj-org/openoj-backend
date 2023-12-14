@@ -43,7 +43,31 @@ function validateFunction(req, res, next, func, isDefault) {
 // 获取题目样例文件
 function problem_samples(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    // TODO
+    let {id} = req.body;
+    select_problem_samples_by_id(id)
+    .then(result =>{
+      if(result.success) {
+        let fileStoragePath = "./static/官方题库/"+id;
+        let filedest = "problem"+id+"data/";
+        var zip = new admZip();
+        result.samples.forEach(element => {
+          if(element.attribute<2) {
+            let inputpath = fileStoragePath+"/data/"+element.input_filename;
+            let outputpath = fileStoragePath+"/data/"+element.output_filename;
+            zip.addFile(filedest+element.input_filename,fs.readFileSync(inputpath));
+          }
+        });
+
+      } else {
+        res.json({
+          success:false,
+          message:result.message
+        });
+      }
+    })
+    .catch(errorObj =>{
+      res.json(errorObj);
+    });
   }, false);
 }
 
@@ -61,7 +85,7 @@ function problem_info(req, res, next) {
     select_problemInfo_by_id(id)
     .then(result =>{
       if(result.success) {
-        
+
       } else {
         res.json({
           success: false,
@@ -313,11 +337,11 @@ function problem_create_by_file(req, res, next) {
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let summary = ReadFile(fileStoragePath+"/question/summary.txt");
-          let background = ReadFile(fileStoragePath+"/question/题目背景.md");
-          let description = ReadFile(fileStoragePath+"/question/题目描述.md");
-          let inputStatement = ReadFile(fileStoragePath+"/question/输入格式.md");
-          let outputStatement = ReadFile(fileStoragePath+"/question/输出格式.md");
-          let rangeAndHint = ReadFile(fileStoragePath+"/question/数据范围与提示.md");
+          let background = ReadFile(fileStoragePath+"/question/background.md");
+          let description = ReadFile(fileStoragePath+"/question/description.md");
+          let inputStatement = ReadFile(fileStoragePath+"/question/inputStatement.md");
+          let outputStatement = ReadFile(fileStoragePath+"/question/outputStatement.md");
+          let rangeAndHint = ReadFile(fileStoragePath+"/question/rangeAndHint.md");
           if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
             fs.unlinkSync(fileStoragePath+"/question");
             summary = summary.message.split(/\r?\n/);
@@ -538,6 +562,11 @@ function authentication(cookie) {
   });
 }
 
+function zip(zipFile,destFolder){
+  var zip = new admZip(zipFile);
+  zip.addLocalFolder('archiver');
+  zip.writeZip('./data.zip');
+}
 
 function unzip(zipFile, destFolder){
   var zip = new admZip(zipFile);
