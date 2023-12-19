@@ -5,7 +5,7 @@ const boom = require('boom');
 const { body, validationResult, Result } = require('express-validator');
 const { 
   CODE_ERROR,
-  CODE_SUCCESS,
+  CODE_SUCCESS
 } = require('../utils/constant');
 // const {  } = require('../CURDs/problemCURD');
 // const { error } = require('console');
@@ -13,12 +13,15 @@ const {
 // const { user } = require('../db/dbConfig');
 var multiparty = require('multiparty');
 const { select_user_id_by_cookie, select_user_by_id } = require('../CURDs/userCURD');
+const { select_official_tags_by_id } = require('../CURDs/problemCURD');
+const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
 const fs = require('fs');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
 const xlsx = require('xlsx');
 const { error } = require('console');
+const { select_official_samples_by_problem_id } = require('../CURDs/sampleCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -44,7 +47,7 @@ function validateFunction(req, res, next, func, isDefault) {
 function problem_samples(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {id} = req.body;
-    select_problem_samples_by_id(id)
+    select_official_samples_by_problem_id(id)
     .then(result =>{
       if(result.success) {
         let fileStoragePath = "./static/官方题库/"+id;
@@ -55,9 +58,12 @@ function problem_samples(req, res, next) {
             let inputpath = fileStoragePath+"/data/"+element.input_filename;
             let outputpath = fileStoragePath+"/data/"+element.output_filename;
             zip.addFile(filedest+element.input_filename,fs.readFileSync(inputpath));
+            zip.addFile(filedest+element.output_filename,fs.readFileSync(outputpath));
           }
         });
-
+        zip.writeZip(fileStoragePath+'data.zip');
+        res.download(fileStoragePath+'data.zip');
+        fs.unlinkSync(fileStoragePath+'data.zip');
       } else {
         res.json({
           success:false,
@@ -73,19 +79,29 @@ function problem_samples(req, res, next) {
 
 // 获取题目列表
 function problem_list(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    // TODO
-  }, false);
+  // validateFunction(req, res, next, (req, res, next) => {
+  //   // TODO
+  // }, false);
+  /*await select_problem_list */
 }
 
 // 获取题目信息
 function problem_info(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {id, evaluation, cookie} = req.body;
-    select_problemInfo_by_id(id)
+    select_official_tags_by_id(id)
     .then(result =>{
       if(result.success) {
+        let usr = GetUserScore(id,cookie);
+        if(evaluation == true) {
+          select_official_tags_by_id(id)
+          .then()
+        }
+        res.json({
+          success:true,
+          title:result.title,
 
+        })
       } else {
         res.json({
           success: false,
@@ -514,6 +530,45 @@ function createSessionId() {
   var formatedUUID = uuidv1();
   console.log(formatedUUID)
   return formatedUUID;
+}
+
+function GetUserScore(id,cookie) {
+  return select_user_id_by_cookie(cookie)
+  .then(usrid => {
+    if(usrid.success) {
+      select_official_score_by_pid_and_uid(id,usrid.id)
+      .then(result =>{
+        if(result.success) {
+          return {
+            success: true,
+            score: result.score
+          };
+        } else {
+          return {
+            success: false,
+            message: result.message
+          };
+        }
+      })
+      .catch(errorObj =>{
+        return {
+          success: false,
+          message: errorObj.message
+        };
+      });
+    } else {
+      return {
+        success: false,
+        message: usrid.message
+      };
+    }
+  })
+  .catch(errorObj => {
+    return {
+      success: false,
+      message: errorObj.message
+    };
+  });
 }
 
 function authentication(cookie) {

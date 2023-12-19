@@ -1,21 +1,19 @@
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
 
-// 查询 global_settings, 返回 { allowRegister, haveList }
-function select_global_settings() {
-	return querySql(`SELECT * FROM global_settings;`)
-	.then(global_settings => {
-		let flag = global_settings && (global_settings.length > 0);
+function select_official_tags_by_id(id) {
+	let sql = 'SELECT * FROM tags WHERE problem_id = ' + id +
+	          ' AND problem_is_official = 1;';
+	return querySql(sql)
+	.then(result => {
+		let flag = result && (result.length > 0);
 		return {
 			success: flag,
-			message: '查询全局设置' + (flag ? '成功' : '失败'),
-			allowRegister: (flag ? 
-						    (global_settings[0].allow_register > 0) :
-							undefined),
-			haveList: (flag ?
-					   (global_settings[0].have_list > 0) :
-					   undefined)
-		}
+			message: (flag ? '标签查询成功' : '标签不存在'),
+			tags: (flag ?
+				result.map(tag => tag.tag_name) :
+				undefined)
+		};
 	})
 	.catch(err => {
 		return {
@@ -25,19 +23,34 @@ function select_global_settings() {
 	});
 }
 
-// 更新 global_settings 的 param 字段 ('allow_register'
-// 或 'have_list') 的值为 value
-function update_global_settings(param, value) {
-	let numValue = value ? 1 : 0;
-	let sql = `UPDATE global_settings SET ${param} = ${numValue} \
-	           WHERE global_setting_id = 0;`;
+function select_official_problem_by_id(id) {
+	let sql = 'SELECT * FROM official_problems WHERE problem_id = ' + id + ';';
 	return querySql(sql)
 	.then(result => {
+		let flag = result && (result.length > 0);
 		return {
-			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ?
-					 `${param} 更新成功` :
-					 `${param} 更新失败`
+			success: flag,
+			message: (flag ? '题目查询成功' : '题目不存在'),
+			title: (flag ? result[0].problem_name : undefined),
+			titleEn: (flag ? result[0].problem_english_name : undefined),
+			source: (flag ? result[0].problem_source : undefined),
+			submit: (flag ? result[0].problem_submit_number : undefined),
+			pass: flag ?
+				  (result[0].problem_submit_number == 0 ?
+				   0 : (result[0].problem_pass_number / result[0].problem_submit_number)) :
+				  undefined,
+			grade: flag ?
+			       (result[0].problem_grade_number == 0 ?
+					0 : (result[0].problem_grade_sum / result[0].problem_grade_number)) :
+				   undefined,
+			type: (flag ? result[0].problem_type : undefined),
+			timeLimit: (flag ? result[0].problem_time_limit : undefined),
+			memoryLimit: (flag ? result[0].problem_memory_limit : undefined),
+			background: (flag ? result[0].problem_background : undefined),
+			statement: (flag ? result[0].problem_description : undefined),
+			inputStatement: (flag ? result[0].problem_input_format : undefined),
+			outputStatement: (flag ? result[0].problem_output_format : undefined),
+			rangeAndHint: (flag ? result[0].problem_data_range_and_hint : undefined)
 		};
 	})
 	.catch(err => {
@@ -48,152 +61,25 @@ function update_global_settings(param, value) {
 	});
 }
 
-// 可以注册的邮箱列表
-function select_email_suffixes() {
-	return querySql(`SELECT * FROM email_suffixes;`)
-	.then(email_suffixes => {
-		if (!email_suffixes || email_suffixes.length == 0) {
-			return {
-				success: false,
-				suffixList: undefined,
-				message: '邮箱后缀列表为空'
-			};
-		} else {
-			return {
-				success: true,
-				suffixList: email_suffixes.map(obj => obj.email_suffix),
-				message: '邮箱后缀列表查询成功'
-			}
-		}
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
-}
-
-// 批量添加邮箱后缀
-function insert_email_suffixes(suffixes) {
-	let sql = 'INSERT INTO email_suffixes (email_suffix) VALUES ' +
-	          toQueryString(suffixes, true) + ';';
-	// console.log(sql);
-	return querySql(sql)
-	.then(result => {
-		return {
-			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? '添加成功' : '添加失败'
-		};
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
-}
-
-// 根据 id 查询用户信息
-function select_user_by_id(id) {
-	return select_first_user_info_by_param('user_id', id);
-}
-
-// 根据 email 查询用户信息
-function select_user_by_email(email) {
-	return select_first_user_info_by_param('user_email', email);
-}
-
-// 根据 name 查询用户信息
-function select_user_by_name(name) {
-	return select_first_user_info_by_param('user_name', name);
-}
-
-// 根据 id 查询用户全部信息
-function select_full_user_by_id(id) {
-	return select_first_user_by_param('user_id', id);
-}
-
-// 根据 email 查询用户全部信息
-function select_full_user_by_email(email) {
-	return select_first_user_by_param('user_email', email);
-}
-
-// 根据 name 查询用户全部信息
-function select_full_user_by_name(name) {
-	return select_first_user_by_param('user_name', name);
-}
-
-// 查询参数 param 为 value 的首个用户
-function select_first_user_by_param(param, value) {
-	return querySql(`SELECT * FROM users WHERE ${param} LIKE '${value}';`)
-	.then(users => {
-		// console.log(param, value, '\n');
-		if (!users || users.length == 0) {
-			return {
-				success: false,
-				message: '用户不存在'
-			};
-		} else {
-			return {
-				success: true,
-				message: '用户信息查询成功',
-				userInfo: users[0]
-			};
-		}
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		}
-	});
-}
-
-// 查询参数 param 为 value 的首个用户的重要信息
-function select_first_user_info_by_param(param, value) {
-	return select_first_user_by_param(param, value)
-	.then(usr => {
-		// console.log(usr);
-		if (usr && usr.success) {
-			let usrInfo = usr.userInfo;
-			return {
-				success: usr.success,
-				message: usr.message,
-				username: usrInfo.user_name,
-				character: usrInfo.user_role,
-				signature: usrInfo.user_signature,
-				registerTime: usrInfo.user_register_time,
-				emailChangeTime: usrInfo.user_email_change_time,
-				nameChangeTime: usrInfo.user_name_change_time,
-				pass: usrInfo.user_pass_number,
-				mail: usrInfo.user_email
-			};
-		} else {
-			return {
-				success: false,
-				message: '用户不存在'
-			}
-		}
-	});
-}
-
-// 根据某一参数排序查询用户列表，返回第 start 至 end 个结果组成的列表
-function select_users_by_param_order(order, increase, usernameKeyword, start, end) {
-	let sql = 'SELECT * FROM users ';
-	sql += (usernameKeyword == null) ? '' : `WHERE user_name LIKE '${usernameKeyword}%' `;
-	sql += `ORDER BY ${order} ` + (increase ? 'ASC ' : 'DESC ');
+function select_official_problems_by_param_order(
+	order, increase, titleKeyword, sourceKeyword, start, end
+) {
+	let sql = 'SELECT * FROM official_problems WHERE problem_name LIKE "';
+	sql += (titleKeyword + '%" AND problem_source LIKE "');
+	sql += (sourceKeyword + '%" ORDER BY ');
+	sql += ((order == 'grade') ?
+	        '(problem_grade_sum / (problem_grade_number + 1))' :
+			order);
+	sql += (increase ? ' ASC ' : ' DESC ');
 	if (start && end) {
-		sql += `LIMIT ${start}, ${end}`;
+		sql += ('LIMIT ' + start + ', ' + end);
 	}
-	// console.log({ order, increase, usernameKeyword, start, end });
-	// console.log(sql);
 	return querySql(sql)
-	.then(users => {
-		if (!users || users.length == 0) {
+	.then(probs => {
+		if (!probs || probs.length == 0) {
 			return {
 				success: false,
-				message: '指定范围内用户不存在',
+				message: '指定范围内题目不存在',
 				count: 0,
 				result: null
 			};
@@ -201,14 +87,16 @@ function select_users_by_param_order(order, increase, usernameKeyword, start, en
 			return {
 				success: true,
 				message: '用户列表查询成功',
-				count: users.length,
-				result: users.map(usr => ({
-					id: usr.user_id,
-					username: usr.user_name,
-					character: usr.user_role,
-					signature: usr.user_signature,
-					registerTime: usr.user_register_time,
-					pass: usr.user_pass_number
+				count: probs.length,
+				result: probs.map(prob => ({
+					id: prob.problem_id,
+					title: prob.problem_name,
+					source: prob.problem_source,
+					submit: prob.problem_submit_number,
+					pass: ((prob.problem_submit_number == 0) ? 0 :
+					       (prob.problem_pass_number / prob.problem_submit_number)),
+					grade: ((prob.problem_grade_number == 0) ? 0 :
+					        (prob.problem_grade_sum / prob.problem_grade_number))
 				}))
 			};
 		}
@@ -221,42 +109,37 @@ function select_users_by_param_order(order, increase, usernameKeyword, start, en
 	});
 }
 
-function insert_user(name, passwordHash, mail, role, signature)
-{
-	// user_register_time, user_name_modify_time,
-	// user_email_modify_time 默认设置为 UTC 毫秒数,
-	// 而 user_pass_number 默认为 0
-	let sql = 'INSERT INTO users(user_name, user_password_hash, user_email, \
-		                         user_role, user_signature) ' + 
-			  `VALUES('${name}', '${passwordHash}', '${mail}', '${role}', '${signature}');`;
+function insert_official_problem(
+	id, title, titleEn, type, timeLimit, memoryLimit,
+	background, statement, inputStatement,
+	outputStatement, rangeAndHint, source) {
+	let sql = 'INSERT INTO official_problems(problem_id, problem_name, \
+		       problem_english_name, problem_type, problem_time_limit, \
+			   problem_memory_limit, problem_background, problem_description, \
+			   problem_input_format, problem_output_format, \
+			   problem_range_and_hint, problem_source) ' + 
+			  `VALUES('${id}', '${title}', '${titleEn}', '${type}', \
+			          '${timeLimit}', '${memoryLimit}', '${background}', \
+					  '${statement}', '${inputStatement}', '${outputStatement}', \
+					  '${rangeAndHint}', '${source}');`;
 	return querySql(sql)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? '注册成功' : '注册失败',
-			// 自动生成的用户 id
-			id: insertId
+			message: (result.affectedRows != 0) ? '添加题目成功' : '添加题目失败'
 		};
 	})
 	.catch(err => {
 		return {
 			success: false,
-			message: err.message,
-			id: null
+			message: err.message
 		};
 	});
 }
 
-function update_user(id, param, value)
-{
-	let sql = `UPDATE users SET ${param} = ${value}`;
-	if (param == 'user_name') {
-		sql += `, user_name_change_time = ${new Date().getTime()}`;
-	} else if (param == 'user_email') {
-		sql += `, user_email_change_time = ${new Date().getTime()}`;
-	}
-	sql += ` WHERE user_id = ${id};`;
-
+function update_official_problem(id, param, value) {
+    let sql = ('UPDATE official_problems SET ' + param + ' = ' +
+	           value + ' WHERE problem_id = ' + id);
 	return querySql(sql)
 	.then(result => {
 		return {
@@ -272,74 +155,12 @@ function update_user(id, param, value)
 	});
 }
 
-function delete_user(id)
-{
-	return querySql(`DELETE FROM users WHERE user_id = ${id}`)
+function delete_official_problem(id) {
+	return querySql(`DELETE FROM official_problems WHERE problem_id = '${id}';`)
 	.then(result => {
 		return {
 			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? '注销成功' : '用户不存在'
-		};
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
-}
-
-function insert_cookie(id, cookie) {
-	let sql = 'INSERT INTO cookies(user_id, cookie) ' + 
-			  `VALUES('${id}', '${cookie}');`;
-	return querySql(sql)
-	.then(result => {
-		return {
-			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? 'cookie 插入成功' : 'cookie 插入失败'
-		};
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
-}
-
-function select_user_id_by_cookie(cookie) {
-	let sql = 'SELECT * FROM cookies ' + 
-			  `WHERE cookie = '${cookie}';`;
-	return querySql(sql)
-	.then(coos => {
-		if (coos && coos.length > 0) {
-			return {
-				success: true,
-				message: '查询 id 成功',
-				id: coos[0].user_id
-			};
-		} else {
-			return {
-				success: false,
-				message: '无效的 cookie'
-			};
-		}
-		
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
-}
-
-function delete_cookie(cookie) {
-	return querySql(`DELETE FROM cookies WHERE cookie = '${cookie}'`)
-	.then(result => {
-		return {
-			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? 'cookie 销毁成功' : 'cookie 无效'
+			message: (result.affectedRows != 0) ? '题目删除成功' : 'id 无效'
 		};
 	})
 	.catch(err => {
@@ -351,40 +172,45 @@ function delete_cookie(cookie) {
 }
 
 module.exports = {
-    /* 参数: id,              // int, 表示题目 id
-	 *  　　 evaluation       // bool, 表示是否需要获取评价
+	/* 参数: id               // int, 表示题目 id
+	 * 作用: 返回包含表示题目标签查询结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,         // bool, 表示更新是否成功
+	 * 　　      message,         // string, 表示返回的消息
+     * 　　      // 以下为 success = true 时存在项
+     * 　　      tags             // array, 表示题目标签的列表
+	 * 　　       -> tags[i]          // string, 表示标签
+	 * 　　  } 的 Promise 对象
+	 */
+	select_official_tags_by_id,
+	/* 参数: id               // int, 表示题目 id
 	 * 作用: 返回包含表示题目信息查询结果的一个对象 {
 	 * 　　      // 以下为必有项
 	 * 　　      success,         // bool, 表示更新是否成功
 	 * 　　      message,         // string, 表示返回的消息
      * 　　      // 以下为 success = true 时存在项
-     * 　　      title,           // string, 表示题目的标题
-     * 　　      titleEn,         // string, 表示题目的英文标题
-     * 　　      source,          // string, 表示题目的来源
-     * 　　      submit,          // int, 表示题目的提交数
-     * 　　      pass,            // double, 表示题目的通过率
-     * 　　      type,            // int, 表示题目类型
-     * 　　      timeLimit,       // int, 表示时间限制 (ms)
-     * 　　      memoryLimit,     // int, 表示空间限制 (MB)
-     * 　　      background,      // string, 表示题目背景
-     * 　　      statement,       // string, 表示题目描述
-     * 　　      inputStatement,  // string, 表示题目的输入格式
-     * 　　      outputStatement, // string, 表示题目的输出格式
-     * 　　      rangeAndHint     // string, 表示题目的数据范围与提示
-	 * 　　  } 的 Promise 对象
+	 * 　　      title,           // string, 表示题目的标题
+	 *  　　     titleEn,         // string, 表示题目的英文标题
+	 *  　　     source,          // string, 表示题目的来源
+	 *  　　     submit,          // int, 表示题目的提交数
+	 *  　　     pass,            // double, 表示题目的通过率
+	 *  　　     grade,           // double, 表示题目的评分
+	 *  　　     type,            // int, 表示题目类型
+	 *  　　     timeLimit,       // int, 表示题目时间限制的毫秒数
+	 *   　　    memoryLimit,     // int, 表示题目空间限制的 MB 数
+	 *   　　    background,      // string, 表示题目的背景
+	 *   　　    statement,       // string, 表示题目的陈述
+	 *   　　    inputStatement,  // string, 表示题目的输入格式
+	 *   　　    outputStatement, // string, 表示题目的输出格式
+	 *   　　    rangeAndHint     // string, 表示题目的数据范围和提示
+	 * 　　  } 的 Promise 对象, 缺少 score, tags 和 samples
 	 */
-    select_problem_by_id,
-    
-	// 根据某一参数 order 按 increase 升序或降序排列，
-	// 查询用户名含前缀为 usernameKeyword 的用户列表，
-	// 返回第 start 至 end 个结果组成的列表
-	/* 参数: evaluation,       // bool, 表示是否需要获取评价
-	 * 　　  order,            // string, 'id'/'title'/'grade'
+    select_official_problem_by_id,
+	/* 参数: order,            // string, 'id'/'title'/'grade'
 	 * 　　                    // 表示 id/标题/评分 字段
 	 * 　　  increase,         // bool, 表示 升/降 序排列
 	 * 　　  titleKeyword,     // string, 如有则表示标题中含此关键词
 	 * 　　  sourceKeyword,    // string, 如有则表示来源中含此关键词
-	 * 　　  tagKeyword,       // string, 如有则表示标签中含此关键词
 	 * 　　  start,            // int, 返回列表头在所有结果中索引
 	 * 　　  end               // int, 返回列表尾在所有结果中索引
 	 * 作用: 返回包含表示题目列表查询结果的一个对象 {
@@ -400,20 +226,47 @@ module.exports = {
 	 * 　　              submit,        // int, 表示题目的提交数
      * 　　              pass,          // double, 表示题目的通过率
 	 * 　　              source,        // string, 表示题目的来源
-	 * 　　              // 以下为 evaluation = true 时存在项
-	 * 　　              grade,         // double, 表示题目的评分
-	 * 　　              tags           // array, 表示题目标签的列表
-	 * 　　               -> tags[i]        // string, 表示标签
-	 * 　　          }
+	 * 　　              grade          // double, 表示题目的评分
+	 * 　　          }              // 缺少 score 和 tags
 	 * 　　      count          // int, 表示题目数
 	 * 　　  } 的 Promise 对象
 	 */
-    select_problems_by_param_order,
-    // 创建题目
-    insert_problem,
-    // 修改题目
-    update_problem,
-    // 删除题目
-    delete_problem,
-    
+    select_official_problems_by_param_order,
+    /* 参数: id,
+	 * 　　  title,
+	 * 　　  titleEn,
+	 * 　　  type,
+	 * 　　  timeLimit,
+	 * 　　  memoryLimit,
+	 * 　　  background,
+	 * 　　  statement,
+	 * 　　  inputStatement,
+	 * 　　  outputStatement,
+	 * 　　  rangeAndHint,
+	 * 　　  source
+	 * 作用: 返回包含表示创建题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
+    insert_official_problem,
+    /* 参数: id,
+	 * 　　  param,
+	 * 　　  value
+	 * 作用: 返回包含表示修改题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
+    update_official_problem,
+    /* 参数: id
+	 * 作用: 返回包含表示删除题目结果的一个对象 {
+	 * 　　      // 以下为必有项
+	 * 　　      success,       // bool, 表示更新是否成功
+	 * 　　      message        // string, 表示返回的消息
+	 * 　　  } 的 Promise 对象
+	 */
+    delete_official_problem
 };

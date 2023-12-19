@@ -18,7 +18,8 @@
         "multiparty": "^4.2.3",
         "mysql": "^2.18.1",
         "nodemailer": "^6.9.7",
-        "uuid": "^9.0.1"
+        "uuid": "^9.0.1",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "crypto": "^1.0.1",
