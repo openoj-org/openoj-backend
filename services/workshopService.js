@@ -9,14 +9,14 @@ const {
 } = require('../utils/constant');
 var multiparty = require('multiparty');
 const { select_user_id_by_cookie, select_user_by_id } = require('../CURDs/userCURD');
-const { select_official_tags_by_id, insert_official_problem, update_official_problem, delete_official_problem, select_official_problem_by_id, select_official_problems_by_param_order } = require('../CURDs/problemCURD');
-const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
+const { select_workshop_tags_by_id, insert_workshop_problem, update_workshop_problem, delete_workshop_problem, select_workshop_problem_by_id, select_workshop_problems_by_param_order } = require('../CURDs/problemCURD');
+const { select_workshop_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
 const fs = require('fs');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
 const { error } = require('console');
-const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/sampleCURD');
+const { select_workshop_samples_by_problem_id, insert_workshop_sample, delete_workshop_sample_by_question_id } = require('../CURDs/sampleCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -39,13 +39,13 @@ function validateFunction(req, res, next, func, isDefault) {
   }
 }
 // 获取题目样例文件
-function problem_samples(req, res, next) {
+function workshop_samples(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {id} = req.body;
-    return select_official_samples_by_problem_id(id)
+    return select_workshop_samples_by_problem_id(id)
     .then(result =>{
       if(result.success) {
-        let fileStoragePath = "./static/official/"+id;
+        let fileStoragePath = "./static/workshop/"+id;
         let filedest = "problem"+id+"data/";
         var zip = new admZip();
         result.samples.forEach(element => {
@@ -73,26 +73,26 @@ function problem_samples(req, res, next) {
 }
 
 // 获取题目列表
-function problem_list(req, res, next) {
+function workshop_list(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {evaluation, cookie, order, increase, titleKeyword, sourceKeyword, tagKeyword, start, end} = req.body;
-    return select_official_problems_by_param_order(order,increase,titleKeyword,sourceKeyword,start,end);
+    return select_workshop_problems_by_param_order(order,increase,titleKeyword,sourceKeyword,start,end);
   }, false);
 }
 
 // 获取题目信息
-function problem_info(req, res, next) {
+function workshop_info(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {id, evaluation, cookie} = req.body;
-    return select_official_problem_by_id(id)
+    return select_workshop_problem_by_id(id)
     .then(result =>{
       if(result.success) {
         let usr = GetUserScore(id,cookie);
         let samples = [];
-        select_official_samples_by_problem_id(id)
+        select_workshop_samples_by_problem_id(id)
         .then(normalObj =>{
           if(normalObj.success) {
-            let fileStoragePath = "./static/official/"+id;
+            let fileStoragePath = "./static/workshop/"+id;
             normalObj.samples.forEach(element => {
               if(element.attribute == 0) {
                 let inputstr = fs.readFileSync(fileStoragePath+"/data/"+element.input_filename);
@@ -103,7 +103,7 @@ function problem_info(req, res, next) {
               }
             });
             if(evaluation) {
-              select_official_tags_by_id(id)
+              select_workshop_tags_by_id(id)
               .then(norObj =>{
                 if(norObj.success) {
                   res.json({
@@ -182,18 +182,64 @@ function problem_info(req, res, next) {
   }, false);
 }
 
-// 删除题目
-function problem_delete(req, res, next) {
+function workshop_import(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let {cookie, id} = req.body;
-    let auth = authentication(cookie);
+    let auth = authentication(cookie,1);
     if(auth.success) {
-      let fileStoragePath = "./static/official/"+id;
+      let fileStoragePath = "./static/workshop/"+id;
       fs.unlinkSync(fileStoragePath);
-      delete_official_sample_by_question_id(id.toString())
+      delete_workshop_sample_by_question_id(id)
       .then(normalObj => {
         if(normalObj.success) {
-          delete_official_problem(id.toString())
+          delete_workshop_problem(id)
+          .then(norObj => {
+            if(norObj.success) {
+              res.json({
+                success: true,
+                message: '删除成功'
+              })
+            } else {
+              res.json({
+                success: false,
+                message: norObj.message
+              })
+            }
+          })
+          .catch(errorObj => {
+            res.json(errorObj);
+          });
+        } else {
+          res.json({
+            success: false,
+            message: normalObj.message
+          });
+        }
+      })
+      .catch(errorObj => {
+        res.json(errorObj);
+      });
+    } else {
+      res.json({
+        success: false,
+        message: auth.message
+      });
+    }
+  }, false);
+}
+
+// 删除题目
+function workshop_delete(req, res, next) {
+  validateFunction(req, res, next, (req, res, next) => {
+    let {cookie, id} = req.body;
+    let auth = authentication(cookie,0);
+    if(auth.success) {
+      let fileStoragePath = "./static/workshop/"+id;
+      fs.unlinkSync(fileStoragePath);
+      delete_workshop_sample_by_question_id(id)
+      .then(normalObj => {
+        if(normalObj.success) {
+          delete_workshop_problem(id)
           .then(norObj => {
             if(norObj.success) {
               res.json({
@@ -230,7 +276,7 @@ function problem_delete(req, res, next) {
 }
 
 // 用文件修改题目
-function problem_change_by_file(req, res, next) {
+function workshop_change_by_file(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let form = new multiparty.Form({ uploadDir: './static' });
     return form.parse(req, async (err, fields, files) => {
@@ -241,10 +287,10 @@ function problem_change_by_file(req, res, next) {
         });
       } else {
         let { cookie, id} = fields;
-        let auth = authentication(cookie);
+        let auth = authentication(cookie,3);
         if(auth.success) {
           let file = files.data[0];
-          let fileStoragePath = "./static/official/"+id;
+          let fileStoragePath = "./static/workshop/"+id;
           fs.unlinkSync(fileStoragePath);
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
@@ -257,11 +303,11 @@ function problem_change_by_file(req, res, next) {
           if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
             fs.unlinkSync(fileStoragePath+"/question");
             summary = summary.message.split(/\r?\n/);
-            update_official_problem( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
+            update_workshop_problem( id, summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
             .then(normalObj => {
               if(normalObj.success) {
                 let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
-                delete_official_sample_by_question_id(id.toString())
+                delete_workshop_sample_by_question_id(id)
                 .then(normalObj => {
                   if(normalObj.success) {
                     let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
@@ -314,7 +360,7 @@ function problem_change_by_file(req, res, next) {
 }
 
 // 修改题目数据
-function problem_change_data(req, res, next) {
+function workshop_change_data(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let form = new multiparty.Form({ uploadDir: './static' });
     return form.parse(req, async (err, fields, files) => {
@@ -325,15 +371,15 @@ function problem_change_data(req, res, next) {
         });
       } else {
         let { cookie, id} = fields;
-        let auth = authentication(cookie);
+        let auth = authentication(cookie,3);
         if(auth.success) {
           let file = files.data[0];
-          let fileStoragePath = "./static/official/"+id;
+          let fileStoragePath = "./static/workshop/"+id;
           fs.unlinkSync(fileStoragePath+"/data");
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
-          delete_official_sample_by_question_id(id.toString())
+          delete_workshop_sample_by_question_id(id)
           .then(normalObj => {
             if(normalObj.success) {
               let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
@@ -370,12 +416,12 @@ function problem_change_data(req, res, next) {
 }
 
 // 修改题目元数据
-function problem_change_meta(req, res, next) {
+function workshop_change_meta(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source} = req.body;
-    let auth = authentication(cookie);
+    let auth = authentication(cookie,3);
     if(auth.success) {
-      update_official_problem( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
+      update_workshop_problem( id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
       .then(normalObj => {
         if(normalObj.success) {
           res.json({
@@ -402,7 +448,7 @@ function problem_change_meta(req, res, next) {
 }
 
 // 用文件创建题目
-function problem_create_by_file(req, res, next) {
+function workshop_create_by_file(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let form = new multiparty.Form({ uploadDir: './static' });
     return form.parse(req, async (err, fields, files) => {
@@ -412,11 +458,11 @@ function problem_create_by_file(req, res, next) {
           message: err
         });
       } else {
-        let { cookie, id} = fields;
-        let auth = authentication(cookie);
+        let { cookie} = fields;
+        let auth = authentication(cookie,3);
         if(auth.success) {
           let file = files.data[0];
-          let fileStoragePath = "./static/official/"+id;
+          let fileStoragePath = "./static/workshop/"+id;
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let summary = ReadFile(fileStoragePath+"/question/summary.txt");
@@ -428,7 +474,7 @@ function problem_create_by_file(req, res, next) {
           if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
             fs.unlinkSync(fileStoragePath+"/question");
             summary = summary.message.split(/\r?\n/);
-            insert_official_problem( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
+            insert_workshop_problem( id, summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
             .then(normalObj => {
               if(normalObj.success) {
                 let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
@@ -472,7 +518,7 @@ function problem_create_by_file(req, res, next) {
 }
 
 // 创建题目
-function problem_create(req, res, next) {
+function workshop_create(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
     let form = new multiparty.Form({ uploadDir: './static' });
     return form.parse(req, async (err, fields, files) => {
@@ -482,14 +528,15 @@ function problem_create(req, res, next) {
           message: err
         });
       } else {
-        let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source} = fields;
-        let auth = authentication(cookie);
+        let { cookie, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source} = fields;
+        let id = createSessionId();
+        let auth = authentication(cookie,3);
         if(auth.success) {
-          insert_official_problem( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
+          insert_workshop_problem( id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
           .then(normalObj => {
             if(normalObj.success) {
               let file = files.data[0];
-              let fileStoragePath = "./static/official/"+id;
+              let fileStoragePath = "./static/workshop/"+id;
               unzip(file.path,fileStoragePath);
               fs.unlinkSync(file.path);
               let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
@@ -497,7 +544,8 @@ function problem_create(req, res, next) {
               if(norObj.success) {
                 res.json({
                   success: true,
-                  message: '题目创建成功'
+                  message: '题目创建成功',
+                  id: id
                 })
               } else {
                 res.json({
@@ -537,7 +585,7 @@ function InsertSamples(arry, i, n, problemid, filepath) {
     let haveinput = FileExist(arry[i][2],filepath);
     let haveoutput = FileExist(arry[i][3],filepath);
     if( haveinput && haveoutput) {
-      return insert_official_sample(samplesid, problemid, parseInt(arry[i][5]), arry[i][0], arry[i][1], arry[i][2], arry[i][3])
+      return insert_workshop_sample(samplesid, problemid, parseInt(arry[i][5]), arry[i][0], arry[i][1], arry[i][2], arry[i][3])
       .then(result => {
         if(result.success) {
           return InsertSamples(arry,i+1,n,problemid);
@@ -598,7 +646,7 @@ function GetUserScore(id,cookie) {
   return select_user_id_by_cookie(cookie)
   .then(usrid => {
     if(usrid.success) {
-      select_official_score_by_pid_and_uid(id,usrid.id)
+      select_workshop_score_by_pid_and_uid(id,usrid.id)
       .then(result =>{
         if(result.success) {
           return {
@@ -633,14 +681,14 @@ function GetUserScore(id,cookie) {
   });
 }
 
-function authentication(cookie) {
+function authentication(cookie, type) {
   return select_user_id_by_cookie(cookie)
   .then(usrid => {
     if(usrid.success) {
       select_user_by_id(usrid.id)
       .then(usr => {
         if(usr.success) {
-          if(usr.character >1) {
+          if(usr.character > type) {
             return {
               success: false,
               message: '无管理权限'
@@ -708,13 +756,14 @@ function decodeConfig(filepath){
 }
 
 module.exports = {
-  problem_samples,
-  problem_list,
-  problem_info,
-  problem_delete,
-  problem_change_by_file,
-  problem_change_data,
-  problem_change_meta,
-  problem_create,
-  problem_create_by_file
+  workshop_samples,
+  workshop_list,
+  workshop_info,
+  workshop_import,
+  workshop_delete,
+  workshop_change_by_file,
+  workshop_change_data,
+  workshop_change_meta,
+  workshop_create,
+  workshop_create_by_file
 }
