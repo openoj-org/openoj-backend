@@ -21,8 +21,8 @@ const fs = require('fs');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
-const xlsx = require('xlsx');
 const { error } = require('console');
+const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/sampleCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -46,32 +46,44 @@ function validateFunction(req, res, next, func, isDefault) {
 }
 // 获取题目样例文件
 function problem_samples(req, res, next) {
-  // validateFunction(req, res, next, (req, res, next) => {
-  //   // TODO
-  // }, false);
+  validateFunction(req, res, next, (req, res, next) => {
+    let {id} = req.body;
+    return select_official_samples_by_problem_id(id)
+    .then(result =>{
+      if(result.success) {
+        let fileStoragePath = "./static/official/"+id;
+        let filedest = "problem"+id+"data/";
+        var zip = new admZip();
+        result.samples.forEach(element => {
+          if(element.attribute<2) {
+            let inputpath = fileStoragePath+"/data/"+element.input_filename;
+            let outputpath = fileStoragePath+"/data/"+element.output_filename;
+            zip.addFile(filedest+element.input_filename,fs.readFileSync(inputpath));
+            zip.addFile(filedest+element.output_filename,fs.readFileSync(outputpath));
+          }
+        });
+        zip.writeZip(fileStoragePath+'data.zip');
+        res.download(fileStoragePath+'data.zip');
+        fs.unlinkSync(fileStoragePath+'data.zip');
+      } else {
+        res.json({
+          success:false,
+          message:result.message
+        });
+      }
+    })
+    .catch(errorObj =>{
+      res.json(errorObj);
+    });
+  }, false);
 }
 
 // 获取题目列表
 function problem_list(req, res, next) {
-  res.json({
-    "success": true,
-    "message": "未知错误",
-    "result": [{
-        "id": "U9riowjk",
-        "title": "归程",
-        "source": "NOI2018",
-        "submit": 1088,
-        "pass": 0.618,
-        "score": 70,
-        "grade": 3.465,
-        "tags": ["树状数组", "贪心", "思维"]
-    }],
-    "count": 100
-  });
-  // validateFunction(req, res, next, (req, res, next) => {
-  //   // TODO
-  // }, false);
-  /*await select_problem_list */
+  validateFunction(req, res, next, (req, res, next) => {
+    let {evaluation, cookie, order, increase, titleKeyword, sourceKeyword, tagKeyword, start, end} = req.body;
+    return select_official_problems_by_param_order(order,increase,titleKeyword,sourceKeyword,start,end);
+  }, false);
 }
 
 // 获取题目信息
@@ -168,12 +180,12 @@ function problem_change_data(req, res, next) {
         let auth = authentication(cookie);
         if(auth.success) {
           let file = files.data[0];
-          let fileStoragePath = "./static/官方题库/"+id;
+          let fileStoragePath = "./static/official/"+id;
           fs.unlinkSync(fileStoragePath+"/data");
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
-          delete_samples_by_question_id(id.toString())
+          delete_official_sample_by_question_id(id.toString())
           .then(normalObj => {
             if(normalObj.success) {
               let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
@@ -215,7 +227,7 @@ function problem_change_meta(req, res, next) {
     let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source } = req.body;
     let auth = authentication(cookie);
     if(auth.success) {
-      update_question( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
+      update_official_problem( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
       .then(normalObj => {
         if(normalObj.success) {
           res.json({
@@ -256,19 +268,19 @@ function problem_create_by_file(req, res, next) {
         let auth = authentication(cookie);
         if(auth.success) {
           let file = files.data[0];
-          let fileStoragePath = "./static/官方题库/"+id;
+          let fileStoragePath = "./static/official/"+id;
           unzip(file.path,fileStoragePath);
           fs.unlinkSync(file.path);
           let summary = ReadFile(fileStoragePath+"/question/summary.txt");
-          let background = ReadFile(fileStoragePath+"/question/题目背景.md");
-          let description = ReadFile(fileStoragePath+"/question/题目描述.md");
-          let inputStatement = ReadFile(fileStoragePath+"/question/输入格式.md");
-          let outputStatement = ReadFile(fileStoragePath+"/question/输出格式.md");
-          let rangeAndHint = ReadFile(fileStoragePath+"/question/数据范围与提示.md");
+          let background = ReadFile(fileStoragePath+"/question/background.md");
+          let description = ReadFile(fileStoragePath+"/question/description.md");
+          let inputStatement = ReadFile(fileStoragePath+"/question/inputStatement.md");
+          let outputStatement = ReadFile(fileStoragePath+"/question/outputStatement.md");
+          let rangeAndHint = ReadFile(fileStoragePath+"/question/rangeAndHint.md");
           if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
             fs.unlinkSync(fileStoragePath+"/question");
             summary = summary.message.split(/\r?\n/);
-            insert_question( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
+            insert_official_problem( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
             .then(normalObj => {
               if(normalObj.success) {
                 let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
@@ -325,11 +337,11 @@ function problem_create(req, res, next) {
         let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source} = fields;
         let auth = authentication(cookie);
         if(auth.success) {
-          insert_question( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
+          insert_official_problem( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
           .then(normalObj => {
             if(normalObj.success) {
               let file = files.data[0];
-              let fileStoragePath = "./static/官方题库/"+id;
+              let fileStoragePath = "./static/official/"+id;
               unzip(file.path,fileStoragePath);
               fs.unlinkSync(file.path);
               let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
@@ -376,13 +388,8 @@ function InsertSamples(arry, i, n, problemid, filepath) {
     let samplesid = createSessionId();
     let haveinput = FileExist(arry[i][2],filepath);
     let haveoutput = FileExist(arry[i][3],filepath);
-    // arry[i][0] : 子任务编号
-    // arry[i][1] : 测试点编号
-    // arry[i][2] : 输入文件名
-    // arry[i][3] : 输出文件名   
-    // arry[i][5] : 样例属性
     if( haveinput && haveoutput) {
-      return insert_samples(samplesid, problemid, parseInt(arry[i][5]), arry[i][0], arry[i][1], arry[i][2], arry[i][3])
+      return insert_official_sample(samplesid, problemid, parseInt(arry[i][5]), arry[i][0], arry[i][1], arry[i][2], arry[i][3])
       .then(result => {
         if(result.success) {
           return InsertSamples(arry,i+1,n,problemid);
