@@ -72,14 +72,90 @@ function validate_data_zip_extract(extractPath) {
     // 第一行两个整数
     // 是否采用子任务、是否采用 SPJ
     const basicConfigs = lines[0].split(' ');
-    if (basicConfigs.length < 2) {
+    if (basicConfigs.length < 2 || basicConfigs.length > 3) {
       return false;
     }
     // let isSubtaskUsed = Number(basicConfigs[0]);
     // let isSPJUsed = Number(basicConfigs[1]);
     // let SPJ
-    if (isSPJUsed) {
-      // let 
+    if (basicConfigs[0] !== '0' && basicConfigs[0] !== '1') {
+        return false;
+    }
+    if (basicConfigs[1] !== '0' && basicConfigs[1] !== '1') {
+        return false;
+    }
+    // 是否使用SPJ
+
+    let useSPJ = false;
+    if (basicConfigs.length === 2) {
+      useSPJ = false;
+    }
+    else {
+      if (basicConfigs[2] === '0') {
+        return false;
+      }
+      else {
+          useSPJ = true;
+          const SPJ_filename = basicConfigs[2];
+      }
+    }
+
+    // 使用子任务
+    if(basicConfigs[1] === '1') {
+      // 创建一个数据结构，用于存储子任务的信息，包括每一个子任务的分数和包含的测试点数量，以及每个测试点的输入文件、输出文件、类型
+      // 例如：subtask = [{score: 10, caseNum: 3, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}, {input: 3.in, output: 3.out, type: 0}]}, {score: 20, caseNum: 2, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}]}]
+
+      let subtaskNum = Number(lines[1]);
+      if (subtaskNum < 1) {
+          return false;
+      }
+      let i = 0;
+      let current_line = 2;
+      while(i < subtaskNum) {
+        const subtaskConfigs = lines[current_line].split(' ');
+        if (subtaskConfigs.length !== 2) {
+          return false;
+        }
+        const subtaskCaseNum = Number(subtaskConfigs[0]);
+        const subtaskScore = Number(subtaskConfigs[1]);
+
+        if (subtaskScore < 1 || subtaskCaseNum < 1) {
+          return false;
+        }
+        // 存储每个子任务的信息
+        let subtask = {
+          score: subtaskScore,
+          caseNum: subtaskCaseNum,
+          cases: []
+        };
+        // 读取每个子任务的测试点信息
+        current_line ++;
+        let j = 0;
+        while(j < subtaskCaseNum) {
+            const caseConfigs = lines[current_line].split(' ');
+            if (caseConfigs.length !== 3) {
+                return false;
+            }
+            const caseInput = caseConfigs[0];
+            const caseOutput = caseConfigs[1];
+            const caseType = Number(caseConfigs[2]);
+            if (caseType !== 0 && caseType !== 1) {
+                return false;
+            }
+            // 存储每个测试点的信息
+            let testcase = {
+                input: caseInput,
+                output: caseOutput,
+                type: caseType
+            };
+            subtask.cases.push(testcase);
+            j ++;
+            current_line ++;
+        }
+        i++;
+      }
+    //返回True，以及subtask
+    //TODO
     }
   });
 
