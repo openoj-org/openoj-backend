@@ -1,3 +1,4 @@
 node_modules/
 package-lock.json
-static/官方题库
+static/official_problems/
+static/workshop_problems/
