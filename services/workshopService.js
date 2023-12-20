@@ -16,7 +16,7 @@ const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
 const { error } = require('console');
-const { select_workshop_samples_by_problem_id, insert_workshop_sample, delete_workshop_sample_by_question_id } = require('../CURDs/sampleCURD');
+const { select_workshop_samples_by_problem_id, insert_workshop_sample, delete_workshop_sample_by_question_id } = require('../CURDs/dataCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {

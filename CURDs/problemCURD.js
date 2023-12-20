@@ -1,5 +1,5 @@
 const {
-	select_one_decorator
+	select_one_decorator, update_decorator
 } = require('./decorator');
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
@@ -26,7 +26,29 @@ function select_official_tags_by_id(id) {
 	});
 }
 
-// function select_
+function select_evaluation_configs_by_id(id, problem_is_official) {
+	// SQL 查询语句和参数列表
+    let sql = 'SELECT problem_use_subtask AS isSubtaskUsed, \
+				problem_use_spj AS isSPJUsed, \
+				problem_spj_filename AS SPJFilename \
+				FROM ' + (problem_is_official ? 'official' : 'workshop') +
+				'_problems WHERE problem_id = ?;'
+    let sqlParams = [id];
+	return select_one_decorator(sql, sqlParams, '评测设置');
+}
+
+function update_evaluation_configs_by_id(
+	isSubtaskUsed, isSPJUsed, SPJFilenameid, id, problem_is_official
+) {
+	// SQL 查询语句和参数列表
+    let sql = 'UPDATE ' + (problem_is_official ? 'official' : 'workshop') +
+	          '_problems SET problem_use_subtask = ?, problem_use_spj = ?, \
+			   problem_spj_filename = ? WHERE problem_id = ?;';
+    let sqlParams = [isSubtaskUsed, isSPJUsed, SPJFilenameid, id];
+	return update_decorator(sql, sqlParams, '评测设置');
+}
+
+
 
 function select_official_problem_by_id(id) {
 	// SQL 查询语句和参数列表
