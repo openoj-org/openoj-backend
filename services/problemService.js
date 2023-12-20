@@ -17,14 +17,14 @@ const { select_user_id_by_cookie, select_user_by_id, select_user_character_by_id
 const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
 const {
   delete_official_sample_by_problem_id
-} = require('../CURDs/sampleCURD');
+} = require('../CURDs/dataCURD');
 const fs = require('fs');
 const fsExt = require('fs-extra');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
 const { error } = require('console');
-const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/sampleCURD');
+const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/dataCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -265,7 +265,17 @@ function problem_info(req, res, next) {
         }
       }
 
-      // TODO: 读取样例
+      // 读取样例
+      let samples = await select_official_samples_by_problem_id(id);
+      if (!samples.success) {
+        return samples;
+      }
+
+      
+      // id, \
+      //          data_attribute AS attribute, \
+      //          data_input_filename AS input_filename, \
+      //          data_output_filename AS output_filename
 
       // 最终返回全部信息
       return problem_info;
