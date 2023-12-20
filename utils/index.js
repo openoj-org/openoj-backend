@@ -48,9 +48,10 @@ function queryOne(sql) {
 }
 function modifySql(sql,sqlParams) {
   const conn = connect();
+  conn.query('USE oj_schema;');
   return new Promise((resolve, reject) => {
     try {
-      conn.query(sql,sqlParams, (err, res) => {
+      conn.query(sql, sqlParams, (err, res) => {
         if (err) {
           reject(err);
         } else {

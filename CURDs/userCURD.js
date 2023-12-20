@@ -1,3 +1,4 @@
+const { select_one_decorator } = require('./decorator');
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
 
@@ -92,6 +93,51 @@ function insert_email_suffixes(suffixes) {
 			message: err.message
 		};
 	});
+}
+
+// 根据 id 查询用户身份
+function select_user_character_by_id(id) {
+	let sql = 'SELECT user_character AS character \
+	           FROM users WHERE user_id = ?;';
+    let sqlParams = [id];
+    return select_one_decorator(sql, sqlParams, '用户身份');
+}
+
+// 验证用户 cookie, mode 为模式,
+// 0 表示验证 root,
+// 1 表示验证管理员 (及以上),
+// 2 表示验证受信用户 (及以上),
+// 3 表示验证正常用户 (及以上),
+// -1 表示验证管理员 (及以下),
+// -2 表示验证受信用户 (及以下),
+// -3 表示验证正常用户 (及以下),
+// -4 表示验证封禁用户
+async function authenticate_cookie(cookie, mode) {
+	try {
+		// 根据 cookie 查找 id 
+	    let user_id = await select_user_id_by_cookie(cookie);
+		if (!user_id.success) {
+			return user_id;
+		}
+
+		// 根据 id 取 character
+		let user_character = await select_user_character_by_id(user_id.id);
+		if (!user_character.success) {
+			return user_character;
+		}
+
+		// 判断 character 是否符合条件
+		let flag_permitted = ((mode < 0) ?
+		                      (user_character.character >= -mode) :
+							  (user_character.character <= mode));
+		return {
+	  		success: flag_permitted,
+	  		message: (flag_permitted ? '验证通过' : '验证不通过'),
+	  		id: flag_permitted ? user_id.id : undefined
+		};
+  	} catch (err) {
+	  	return err;
+	}
 }
 
 // 根据 id 查询用户信息
@@ -395,6 +441,10 @@ module.exports = {
 	 */
 	insert_email_suffixes,
 
+
+	select_user_character_by_id,
+	// 验证 cookie
+	authenticate_cookie,
 	// 根据 id 查询用户信息
 	select_user_by_id,
 	// 根据 email 查询用户信息

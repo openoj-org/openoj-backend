@@ -20,9 +20,10 @@ function update_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(result => {
         let flag = (result && (result.affectedRows != 0));
+        flag ? {} : console.log(result.message);
         return {
 			success: flag,
-			message: flag ? `修改${name}成功` : `修改${name}失败`
+			message: (flag ? `修改${name}成功` : `修改${name}失败`)
 		};
     });
 }
@@ -31,10 +32,11 @@ function select_one_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(results => {
         let flag = (results && (results.length != 0));
+        flag ? {} : console.log(results.message);
         return {
 			success: flag,
-			message: flag ? `查询${name}成功` : `查询${name}失败`,
-            result: flag ? results[0] : undefined
+			message: (flag ? `查询${name}成功` : `查询${name}失败`),
+            result: (flag ? results[0] : undefined)
 		};
     });
 }
@@ -43,10 +45,11 @@ function select_multiple_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(results => {
         let flag = (results && (results.length != 0));
+        flag ? {} : console.log(results.message);
         return {
 			success: flag,
-			message: flag ? `查询${name}成功` : `查询${name}失败`,
-            result: flag ? results : undefined
+			message: (flag ? `查询${name}成功` : `查询${name}失败`),
+            result: (flag ? results : undefined)
 		};
     });
 }
@@ -55,9 +58,10 @@ function insert_one_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(result => {
         let flag = (result && (result.affectedRows != 0));
+        flag ? {} : console.log(result.message);
         return {
 			success: flag,
-			message: flag ? `添加${name}成功` : `添加${name}失败`,
+			message: (flag ? `添加${name}成功` : `添加${name}失败`),
             id: (flag ? result.insertId : undefined)
 		};
     });
@@ -67,9 +71,10 @@ function insert_multiple_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(result => {
         let flag = (result && (result.affectedRows != 0));
+        flag ? {} : console.log(result.message);
         return {
 			success: flag,
-			message: flag ? `批量添加${name}成功` : `批量添加${name}失败`
+			message: (flag ? `批量添加${name}成功` : `批量添加${name}失败`)
 		};
     });
 }
@@ -77,10 +82,11 @@ function insert_multiple_decorator(sql, sqlParams, name) {
 function delete_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(result => {
-        let flag = (result && (result.affectedRows != 0));
+        let flag = !!result;
+        flag ? {} : console.log(result.message);
         return {
 			success: flag,
-			message: flag ? `删除${name}成功` : `删除${name}失败`
+			message: (flag ? `删除了 ${result.affectedRows} 项${name}` : `删除${name}失败`)
 		};
     });
 }

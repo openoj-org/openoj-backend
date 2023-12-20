@@ -7,12 +7,16 @@ const {
   CODE_ERROR,
   CODE_SUCCESS
 } = require('../utils/constant');
-// const {  } = require('../CURDs/problemCURD');
+const { select_official_problem_by_id, select_official_tags_by_id, delete_official_problem } = require('../CURDs/problemCURD');
 // const { error } = require('console');
 // const { setCookie } = require('undici-types');
 // const { user } = require('../db/dbConfig');
 var multiparty = require('multiparty');
-const { select_user_id_by_cookie, select_user_by_id } = require('../CURDs/userCURD');
+const { select_user_id_by_cookie, select_user_by_id, select_user_character_by_id, authenticate_cookie } = require('../CURDs/userCURD');
+const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
+const {
+  delete_official_sample_by_problem_id
+} = require('../CURDs/sampleCURD');
 const fs = require('fs');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
@@ -72,154 +76,81 @@ function problem_list(req, res, next) {
 
 // 获取题目信息
 function problem_info(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    let {id, evaluation, cookie} = req.body;
-    select_problemInfo_by_id(id)
-    .then(result =>{
-      if(result.success) {
-        
-      } else {
-        res.json({
-          success: false,
-          message: result.message
-        })
+  validateFunction(req, res, next, async (req, res, next) => {
+    let { id, evaluation, cookie } = req.query;
+    if (typeof evaluation == 'string')
+      evaluation = (evaluation == 'true');
+    try {
+      // 获取除 tag, score 和 sample 外的题目信息
+      let problem_info = await select_official_problem_by_id(id);
+      if (!problem_info.success) {
+        return problem_info;
       }
-    })
-    .catch(errorObj =>{
-      res.json(errorObj);
-    })
-  }, false);
+
+      // 不需要获取评分和标签, 则直接返回
+      if (!evaluation) {
+        delete problem_info.result.grade;
+        return problem_info;
+      }
+
+      // 查询 tag 列表
+      let tags_info = await select_official_tags_by_id(id);
+      problem_info.tags = (tags_info.success ? tags_info.tags : []);
+
+      // 检验 cookie 有效性, 若是则根据用户 id 查询 score
+      if (cookie != null) {
+        let cookie_verified = await authenticate_cookie(cookie, 3);
+        if (cookie_verified.success) {
+          let highest_score = await select_official_score_by_pid_and_uid(id, cookie_verified.id);
+          problem_info.score = (highest_score.success ? highest_score.score : 0);
+        } else {
+          problem_info.message = cookie_verified.message;
+        }
+      }
+
+      // 最终返回全部信息
+      return problem_info;
+    } catch (e) {
+      return e;
+    }
+  }, true);
 }
 
 // 删除题目
 function problem_delete(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    let {cookie, id} = req.body;
-    let auth = authentication(cookie);
-    if(auth.success) {
-      let fileStoragePath = "./static/官方题库/"+id;
-      fs.unlinkSync(fileStoragePath);
-      delete_samples_by_question_id(id.toString())
-      .then(normalObj => {
-        if(normalObj.success) {
-          delete_question_by_id(id.toString())
-          .then(norObj => {
-            if(norObj.success) {
-              res.json({
-                success: true,
-                message: '删除成功'
-              })
-            } else {
-              res.json({
-                success: false,
-                message: norObj.message
-              })
-            }
-          })
-          .catch(errorObj => {
-            res.json(errorObj);
-          });
-        } else {
-          res.json({
-            success: false,
-            message: normalObj.message
-          });
-        }
-      })
-      .catch(errorObj => {
-        res.json(errorObj);
-      });
-    } else {
-      res.json({
-        success: false,
-        message: auth.message
-      });
+  validateFunction(req, res, next, async (req, res, next) => {
+    let { cookie, id } = req.body;
+
+    // 检验 cookie 有效性
+    let cookie_verified = await authenticate_cookie(cookie, 0);
+    if (!cookie_verified.success) {
+      return cookie_verified;
     }
-  }, false);
+
+    // 删除题目的数据文件
+    let fileStoragePath = "./static/官方题库/" + id;
+    fs.unlinkSync(fileStoragePath);
+
+    // 删除数据库中的样例和问题
+    let flag_sample = await delete_official_sample_by_problem_id(id).success;
+    let flag_problem = await delete_official_problem(id).success;
+
+    return {
+      success: flag_sample && flag_problem,
+      message: ('删除题目' + ((flag_sample && flag_problem) ? '成功' : '失败'))
+    };
+  }, true);
 }
 
 // 用文件修改题目
 function problem_change_by_file(req, res, next) {
-  validateFunction(req, res, next, (req, res, next) => {
-    let form = new multiparty.Form({ uploadDir: './static' });
-    return form.parse(req, async (err, fields, files) => {
-      if (err) {
-        res.json({
-          success: false,
-          message: err
-        });
-      } else {
-        let { cookie, id} = fields;
-        let auth = authentication(cookie);
-        if(auth.success) {
-          let file = files.data[0];
-          let fileStoragePath = "./static/官方题库/"+id;
-          fs.unlinkSync(fileStoragePath);
-          unzip(file.path,fileStoragePath);
-          fs.unlinkSync(file.path);
-          let summary = ReadFile(fileStoragePath+"/question/summary.txt");
-          let background = ReadFile(fileStoragePath+"/question/background.md");
-          let description = ReadFile(fileStoragePath+"/question/description.md");
-          let inputStatement = ReadFile(fileStoragePath+"/question/inputStatement.md");
-          let outputStatement = ReadFile(fileStoragePath+"/question/outputStatement.md");
-          let rangeAndHint = ReadFile(fileStoragePath+"/question/rangeAndHint.md");
-          if(summary.success && background.success && description.success && inputStatement.success && outputStatement.success && rangeAndHint.success) {
-            fs.unlinkSync(fileStoragePath+"/question");
-            summary = summary.message.split(/\r?\n/);
-            update_question( id.toString(), summary[0], summary[1], summary[2], summary[3], summary[4], background.message, description.message, inputStatement.message, outputStatement.message, rangeAndHint.message, summary[5])
-            .then(normalObj => {
-              if(normalObj.success) {
-                let { arry, row} = decodeConfig(fileStoragePath+"/data/config.txt");
-                delete_samples_by_question_id(id.toString())
-                .then(normalObj => {
-                  if(normalObj.success) {
-                    let norObj = InsertSamples(arry,1,row,id,fileStoragePath+"/data/");
-                    if(norObj.success) {
-                      res.json({
-                        success: true,
-                        message: '评测数据更新成功'
-                      })
-                    } else {
-                      res.json({
-                        success: false,
-                        message: norObj.message
-                      })
-                    }
-                  } else {
-                    res.json({
-                      success: false,
-                      message: normalObj.message
-                    });
-                  }
-                })
-                .catch(errorObj => {
-                  res.json(errorObj);
-                });
-              } else {
-                res.json({
-                  success: false,
-                  message: normalObj.message
-                });
-              }
-            })
-            .catch(errorObj => {
-              res.json(errorObj);
-            });
-          } else {
-            res.json({
-              success: false,
-              message: '文件错误'
-            });
-          }
-        } else {
-          res.json({
-            success: false,
-            message: auth.message
-          });
-        }
-      }
-    });
-  }, false);
+  validateFunction(req, res, next, async (req, res, next) => {
+    const zipBuffer = req.file.buffer;
+    const zip = new admZip(zipBuffer);
+    const extractDir = './temp';
+
+    zip.extractAllTo(extractDir, true);
+  }, true);
 }
 
 // 修改题目数据
@@ -281,7 +212,7 @@ function problem_change_data(req, res, next) {
 // 修改题目元数据
 function problem_change_meta(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
-    let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source} = req.body;
+    let { cookie, id, title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source } = req.body;
     let auth = authentication(cookie);
     if(auth.success) {
       update_question( id.toString(), title, titleEn, type, timeLimit, memoryLimit, background, statement, inputStatement, outputStatement, rangeAndHint, source)
@@ -508,54 +439,37 @@ function createSessionId() {
   return formatedUUID;
 }
 
-function authentication(cookie) {
-  return select_user_id_by_cookie(cookie)
-  .then(usrid => {
-    if(usrid.success) {
-      select_user_by_id(usrid.id)
-      .then(usr => {
-        if(usr.success) {
-          if(usr.character >1) {
-            return {
-              success: false,
-              message: '无管理权限'
-            }
-          } else {
-            return {
-              success: true,
-              message: '验证成功'
-            }
-          }
-        } else {
-          return {
-            success: false,
-            message: usr.message
-          }
-        }
-      })
-      .catch(errorObj => {
-        return {
-          success: false,
-          message: errorObj.message
-        }
-      });
-    } else {
+// 验证用户 cookie, mode 为模式,
+// 0 表示验证 root,
+// 1 表示验证管理员 (及以上),
+// 2 表示验证受信用户 (及以上),
+// 3 表示验证正常用户 (及以上),
+// -1 表示验证管理员 (及以下),
+// -2 表示验证受信用户 (及以下),
+// -3 表示验证正常用户 (及以下),
+// -4 表示验证封禁用户
+async function authentication(cookie, mode) {
+  try {
+    let user_id = await select_user_id_by_cookie(cookie);
+    if (user_id.success) {
+      let user_character = await select_user_character_by_id(user_id.id);
+      let flag_success = user_character.success;
+      let flag_permitted = (user_character.character <= mode);
       return {
-        success: false,
-        message: usrid.message
-      }
+        success: (flag_success && flag_permitted),
+        message: (flag_success ?
+                  (flag_permitted ? '用户验证成功' : '用户已封禁') :
+                  user_info.message),
+        id: (flag_success && flag_permitted) ? user_id.id : undefined
+      };
     }
-  })
-  .catch(errorObj => {
-    return {
-      success: false,
-      message: errorObj.message
-    }
-  });
+  } catch (err) {
+    return err;
+  }
 }
 
+function unzip(zipFile, destFolder) {
 
-function unzip(zipFile, destFolder){
   var zip = new admZip(zipFile);
   var zipEntries = zip.getEntries();
   for(var i=0; i<zipEntries.length; i ++){

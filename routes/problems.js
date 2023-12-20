@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const service = require('../services/problemService');
+const multer = require('multer');
 
+const service = require('../services/problemService');
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 
 // 获取题目样例文件
@@ -18,7 +21,7 @@ router.get('/problem/info', service.problem_info);
 router.post('/problem/delete', service.problem_delete);
 
 // 用文件修改题目
-router.post('/problem/change-by-file', service.problem_change_by_file);
+router.post('/problem/change-by-file', upload.single('data'), service.problem_change_by_file);
 
 // 修改题目数据
 router.post('/problem/change-data', service.problem_change_data);

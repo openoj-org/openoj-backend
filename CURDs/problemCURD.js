@@ -1,3 +1,6 @@
+const {
+	select_one_decorator
+} = require('./decorator');
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
 
@@ -23,41 +26,50 @@ function select_official_tags_by_id(id) {
 	});
 }
 
+// function select_
+
 function select_official_problem_by_id(id) {
-	let sql = 'SELECT * FROM official_problems WHERE problem_id = ' + id + ';';
-	return querySql(sql)
-	.then(result => {
-		let flag = result && (result.length > 0);
-		return {
-			success: flag,
-			message: (flag ? '题目查询成功' : '题目不存在'),
-			title: (flag ? result[0].problem_name : undefined),
-			titleEn: (flag ? result[0].problem_english_name : undefined),
-			source: (flag ? result[0].problem_source : undefined),
-			submit: (flag ? result[0].problem_submit_number : undefined),
-			pass: flag ?
-				  (result[0].problem_submit_number == 0 ?
-				   0 : (result[0].problem_pass_number / result[0].problem_submit_number)) :
-				  undefined,
-			grade: flag ?
-			       (result[0].problem_grade_number == 0 ?
-					0 : (result[0].problem_grade_sum / result[0].problem_grade_number)) :
-				   undefined,
-			type: (flag ? result[0].problem_type : undefined),
-			timeLimit: (flag ? result[0].problem_time_limit : undefined),
-			memoryLimit: (flag ? result[0].problem_memory_limit : undefined),
-			background: (flag ? result[0].problem_background : undefined),
-			statement: (flag ? result[0].problem_description : undefined),
-			inputStatement: (flag ? result[0].problem_input_format : undefined),
-			outputStatement: (flag ? result[0].problem_output_format : undefined),
-			rangeAndHint: (flag ? result[0].problem_data_range_and_hint : undefined)
-		};
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
+	// SQL 查询语句和参数列表
+    let sql = '';
+    let sqlParams = [id];
+
+    // 查询语句确定被查表和查询结果的主要部分
+    let mainStr = 'SELECT problem_name AS title, \
+	               problem_english_name AS titleEn, \
+	               problem_source AS source, \
+				   problem_submit_number AS submitNum, \
+				   problem_pass_number AS passNum, \
+				   problem_grade_sum AS gradeSum, \
+				   problem_grade_number AS gradeNum, \
+				   problem_type AS type, \
+				   problem_time_limit AS timeLimit, \
+				   problem_memory_limit AS memoryLimit, \
+				   problem_background AS background, \
+				   problem_description AS statement, \
+				   problem_input_format AS inputStatement, \
+				   problem_output_format AS outputStatement, \
+				   problem_data_range_and_hint AS rangeAndHint \
+				   FROM official_problems ';
+
+    // 查询语句的 WHERE 子句
+    let whereStr = 'WHERE problem_id = ?;';
+
+    // SQL 查询语句拼接
+    sql = mainStr + whereStr;
+
+    return select_one_decorator(sql, sqlParams, '题目')
+	.then(obj => {
+		if (obj.success) {
+			obj.result.pass = (obj.result.submitNum == 0) ? 0 :
+							  (obj.result.passNum / obj.result.submitNum);
+			obj.result.grade = (obj.result.gradeNum == 0) ? 0 :
+							   (obj.result.gradeSum / obj.result.gradeNum);
+			delete obj.result.passNum;
+			delete obj.result.submitNum;
+			delete obj.result.gradeSum;
+			delete obj.result.gradeNum;
+		}
+		return obj;
 	});
 }
 
@@ -71,7 +83,7 @@ function select_official_problems_by_param_order(
 	        '(problem_grade_sum / (problem_grade_number + 1))' :
 			order);
 	sql += (increase ? ' ASC ' : ' DESC ');
-	if (start && end) {
+	if (start != null && end != null) {
 		sql += ('LIMIT ' + start + ', ' + end);
 	}
 	return querySql(sql)
