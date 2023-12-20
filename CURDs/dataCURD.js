@@ -1,4 +1,4 @@
-/* 文件名: sampleCURD.js
+/* 文件名: dataCURD.js
  * 功能: 对评测数据 evaluations 表的增删查改
  * 作者: niehy21
  * 最后更新时间: 2023/12/13
@@ -10,33 +10,54 @@ const {
     select_multiple_decorator
 } = require('./decorator');
 
-function select_samples_by_problem_id(problem_id, problem_is_official) {
-    let sql = 'SELECT sample_id AS id, \
-               sample_attribute AS attribute, \
-               sample_input_filename AS input_filename, \
-               sample_output_filename AS output_filename \
-               FROM samples WHERE problem_id = ? \
-               AND problem_is_official = ?;';
+function select_sample_by_problem_id(problem_id, problem_is_official) {
+    let sql = 'SELECT data_id AS id, \
+               data_attribute AS attribute, \
+               data_input_filename AS input_filename, \
+               data_output_filename AS output_filename \
+               FROM data WHERE problem_id = ? \
+               AND problem_is_official = ? \
+               AND data_attribute != "non_sample";';
     let sqlParams = [problem_id, problem_is_official];
     return select_multiple_decorator(sql, sqlParams, '样例');
 }
 
-function select_official_samples_by_problem_id(problem_id) {
-    return select_samples_by_problem_id(problem_id, 1);
+function select_official_sample_by_problem_id(problem_id) {
+    return select_sample_by_problem_id(problem_id, 1);
 }
 
-function select_workshop_samples_by_problem_id(problem_id) {
-    return select_samples_by_problem_id(problem_id, 0);
+function select_workshop_sample_by_problem_id(problem_id) {
+    return select_sample_by_problem_id(problem_id, 0);
 }
 
-function insert_sample(
+function select_data_by_problem_id(problem_id, problem_is_official) {
+    let sql = 'SELECT data_id AS id, \
+               data_attribute AS attribute, \
+               data_input_filename AS input_filename, \
+               data_output_filename AS output_filename \
+               FROM data WHERE problem_id = ? \
+               AND problem_is_official = ? \
+               AND data_attribute = "non_sample";';
+    let sqlParams = [problem_id, problem_is_official];
+    return select_multiple_decorator(sql, sqlParams, '样例');
+}
+
+function select_official_data_by_problem_id(problem_id) {
+    return select_data_by_problem_id(problem_id, 1);
+}
+
+function select_workshop_data_by_problem_id(problem_id) {
+    return select_data_by_problem_id(problem_id, 0);
+}
+
+function insert_data(
     id, problem_id, problem_is_official, attribute, subtask_number,
     testpoint_number, input_filename, output_filename
 ) {
-    let sql = 'INSERT INTO samples(sample_id, problem_id, \
-               problem_is_official, sample_attribute, \
+    let sql = 'INSERT INTO data(data_id, problem_id, \
+               problem_is_official, data_attribute, \
                subtask_number, testpoint_number, \
-               sample_input_filename, sample_output_filename) \
+               data_input_filename, data_output_filename) \
                VALUES(?, ?, ?, ?, ?, ?, ?, ?);';
     let sqlParams = [id, problem_id, (problem_is_official ? 1 : 0),
                      attribute, subtask_number, testpoint_number,
@@ -44,39 +65,39 @@ function insert_sample(
     return insert_one_decorator(sql, sqlParams, '样例');
 }
 
-function insert_official_sample(
+function insert_official_data(
     id, problem_id, attribute, subtask_number,
     testpoint_number, input_filename, output_filename
 ) {
-    return insert_sample(
+    return insert_data(
         id, problem_id, 1, attribute, subtask_number,
         testpoint_number, input_filename, output_filename
     );
 }
 
-function insert_workshop_sample(
+function insert_workshop_data(
     id, problem_id, attribute, subtask_number,
     testpoint_number, input_filename, output_filename
 ) {
-    return insert_sample(
+    return insert_data(
         id, problem_id, 0, attribute, subtask_number,
         testpoint_number, input_filename, output_filename
     );
 }
 
-function delete_sample_by_problem_id(problem_id, problem_is_official) {
-    let sql = 'DELETE FROM samples WHERE problem_id = ? \
+function delete_data_by_problem_id(problem_id, problem_is_official) {
+    let sql = 'DELETE FROM data WHERE problem_id = ? \
                AND problem_is_official = ?;';
     let sqlParams = [problem_id, problem_is_official];
     return delete_decorator(sql, sqlParams, '样例');
 }
 
-function delete_official_sample_by_problem_id(problem_id) {
-    return delete_sample_by_problem_id(problem_id, 1);
+function delete_official_data_by_problem_id(problem_id) {
+    return delete_data_by_problem_id(problem_id, 1);
 }
 
-function delete_workshop_sample_by_problem_id(problem_id) {
-    return delete_sample_by_problem_id(problem_id, 0);
+function delete_workshop_data_by_problem_id(problem_id) {
+    return delete_data_by_problem_id(problem_id, 0);
 }
 
 module.exports = {
@@ -87,8 +108,8 @@ module.exports = {
 	 * 　　      success,         // bool, 查询是否成功
 	 * 　　      message,         // string, 返回的消息
      * 　　      // 以下为 success = true 时存在项
-     * 　　      samples          // array, 题目样例的列表
-	 * 　　       -> samples[i]       // object, 单个样例 {
+     * 　　      result           // array, 题目样例的列表
+	 * 　　       -> result[i]        // object, 单个样例 {
      * 　　              id,              // int, 样例 id
      * 　　              attribute,       // string, 样例属性
      * 　　              input_filename,  // string, 样例输入文件名
@@ -96,7 +117,7 @@ module.exports = {
      * 　　          }
 	 * 　　  } 的 Promise 对象
 	 */
-    select_official_samples_by_problem_id,
+    select_official_sample_by_problem_id,
     
     
     /* 参数: problem_id       // int, 工坊题目 id
@@ -105,8 +126,8 @@ module.exports = {
 	 * 　　      success,         // bool, 查询是否成功
 	 * 　　      message,         // string, 返回的消息
      * 　　      // 以下为 success = true 时存在项
-     * 　　      samples          // array, 题目样例的列表
-	 * 　　       -> samples[i]       // object, 单个样例 {
+     * 　　      result           // array, 题目样例的列表
+	 * 　　       -> result[i]        // object, 单个样例 {
      * 　　              id,              // int, 样例 id
      * 　　              attribute,       // string, 样例属性
      * 　　              input_filename,  // string, 样例输入文件名
@@ -114,7 +135,14 @@ module.exports = {
      * 　　          }
 	 * 　　  } 的 Promise 对象
 	 */
-    select_workshop_samples_by_problem_id,
+    select_workshop_sample_by_problem_id,
+
+
+    select_official_data_by_problem_id,
+    
+    
+
+    select_workshop_data_by_problem_id,
 
 
     /* 参数: id,               // int, 样例 id
@@ -132,7 +160,7 @@ module.exports = {
      * 　　      id                // int, 插入的样例 id
 	 * 　　  } 的 Promise 对象
 	 */
-    insert_official_sample,
+    insert_official_data,
 
     
     /* 参数: id,               // int, 样例 id
@@ -150,7 +178,7 @@ module.exports = {
      * 　　      id                // int, 插入的样例 id
 	 * 　　  } 的 Promise 对象
 	 */
-    insert_workshop_sample,
+    insert_workshop_data,
 
 
     /* 参数: problem_id       // int, 官方题目 id
@@ -160,7 +188,7 @@ module.exports = {
 	 * 　　      message           // string, 返回的消息
 	 * 　　  } 的 Promise 对象
 	 */
-    delete_official_sample_by_problem_id,
+    delete_official_data_by_problem_id,
 
 
     /* 参数: problem_id       // int, 工坊题目 id
@@ -170,6 +198,6 @@ module.exports = {
 	 * 　　      message           // string, 返回的消息
 	 * 　　  } 的 Promise 对象
 	 */
-    delete_workshop_sample_by_problem_id
+    delete_workshop_data_by_problem_id
 
 };

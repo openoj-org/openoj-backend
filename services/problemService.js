@@ -2,6 +2,7 @@
 const { querySql, queryOne, modifysql } = require('../utils/index');
 const md5 = require('../utils/md5');
 const boom = require('boom');
+const path = require('path');
 const { body, validationResult, Result } = require('express-validator');
 const { 
   CODE_ERROR,
@@ -16,13 +17,14 @@ const { select_user_id_by_cookie, select_user_by_id, select_user_character_by_id
 const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
 const {
   delete_official_sample_by_problem_id
-} = require('../CURDs/sampleCURD');
+} = require('../CURDs/dataCURD');
 const fs = require('fs');
+const fsExt = require('fs-extra');
 const {v1 : uuidv1} = require('uuid');
 const admZip = require('adm-zip');
 const iconv    = require('iconv-lite');
 const { error } = require('console');
-const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/sampleCURD');
+const { select_official_samples_by_problem_id, insert_official_sample, delete_official_sample_by_question_id } = require('../CURDs/dataCURD');
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -44,6 +46,73 @@ function validateFunction(req, res, next, func, isDefault) {
     });
   }
 }
+
+// 检验上传数据的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
+function validate_data_zip_extract(extractPath) {
+  // 文件名列表
+  const dataFiles = fs.readdirSync(extractPath);
+
+  // 检查基础的文件列表
+  if (!dataFiles.includes('config.txt')) {
+    return false;
+  }
+
+  // 读取 config.txt
+  fs.readFile(extractPath + '/config.txt', 'utf8', (err, data) => {
+    if (err) {
+      return false;
+    }
+
+    // 按行分隔
+    const lines = data.split('\n');
+    if (lines.length < 1) {
+      return false;
+    }
+
+    // 第一行两个整数
+    // 是否采用子任务、是否采用 SPJ
+    const basicConfigs = lines[0].split(' ');
+    if (basicConfigs.length < 2) {
+      return false;
+    }
+    // let isSubtaskUsed = Number(basicConfigs[0]);
+    // let isSPJUsed = Number(basicConfigs[1]);
+    // let SPJ
+    if (isSPJUsed) {
+      // let 
+    }
+  });
+
+  return true;
+}
+
+// 检验上传题目的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
+function validate_zip_extract(extractPath) {
+  // 解压后的目录名列表
+  const dirs = fs.readdirSync(extractPath);
+  if (!dirs.includes('data') || !dirs.includes('question')) {
+    return false;
+  }
+
+  // data 和 question 目录下分别的文件名列表
+  const dataFiles = fs.readdirSync(extractPath + '/data');
+  const questionFiles = fs.readdirSync(extractPath + '/question');
+
+  // 检查基础的文件列表
+  if (!questionFiles.includes('summary.txt') ||
+      !questionFiles.includes('description.md') ||
+      !questionFiles.includes('inputStatement.md') ||
+      !questionFiles.includes('outputStatement.md') ||
+      !questionFiles.includes('rangeAndHint.md')) {
+    return false;
+  }
+  if (!dataFiles.includes('config.txt')) {
+    return false;
+  }
+
+  return true;
+}
+
 // 获取题目样例文件
 function problem_samples(req, res, next) {
   validateFunction(req, res, next, (req, res, next) => {
@@ -120,6 +189,18 @@ function problem_info(req, res, next) {
         }
       }
 
+      // 读取样例
+      let samples = await select_official_samples_by_problem_id(id);
+      if (!samples.success) {
+        return samples;
+      }
+
+      
+      // id, \
+      //          data_attribute AS attribute, \
+      //          data_input_filename AS input_filename, \
+      //          data_output_filename AS output_filename
+
       // 最终返回全部信息
       return problem_info;
     } catch (e) {
@@ -131,6 +212,7 @@ function problem_info(req, res, next) {
 // 删除题目
 function problem_delete(req, res, next) {
   validateFunction(req, res, next, async (req, res, next) => {
+    // 从请求体中解析参数
     let { cookie, id } = req.body;
 
     // 检验 cookie 有效性
@@ -157,11 +239,50 @@ function problem_delete(req, res, next) {
 // 用文件修改题目
 function problem_change_by_file(req, res, next) {
   validateFunction(req, res, next, async (req, res, next) => {
-    const zipBuffer = req.file.buffer;
-    const zip = new admZip(zipBuffer);
-    const extractDir = './temp';
+    // 从请求体中解析参数
+    let { cookie, id } = req.body;
 
+    // 读取缓存文件
+    const zipBuffer = req.file.buffer;
+
+    // 若文件扩展名不为 .zip, 直接报错
+    if (path.extname(req.file.originalname) != '.zip') {
+      return {
+        success: false,
+        message: '请上传 .zip 文件'
+      };
+    };
+
+    // 将文件解压至 temp 下
+    const zip = new admZip(zipBuffer);
+    const extractDir = './temp/' + uuidv1();
+    const staticDir = './static/' + id;
     zip.extractAllTo(extractDir, true);
+
+    // 检查 .zip 文件的目录
+    if (!validate_zip_extract(extractDir)) {
+      fs.rmdirSync(extractDir);
+      return {
+        success: false,
+        message: '.zip 文件目录有误'
+      };
+    }
+
+    // 若 static 中文件夹不存在则创建
+    if (!fs.existsSync(staticDir)) {
+      fs.mkdirSync(staticDir);
+    }
+
+    // 将正确的题目数据文件移至 static 文件夹下
+    fsExt.copySync(extractDir, staticDir);
+    
+    // 将 temp 下的临时文件删除
+    fsExt.removeSync(extractDir);
+
+    return {
+      success: true,
+      message: '修改题目信息成功'
+    };
   }, true);
 }
 
@@ -446,37 +567,7 @@ function createSessionId() {
   return formatedUUID;
 }
 
-// 验证用户 cookie, mode 为模式,
-// 0 表示验证 root,
-// 1 表示验证管理员 (及以上),
-// 2 表示验证受信用户 (及以上),
-// 3 表示验证正常用户 (及以上),
-// -1 表示验证管理员 (及以下),
-// -2 表示验证受信用户 (及以下),
-// -3 表示验证正常用户 (及以下),
-// -4 表示验证封禁用户
-async function authentication(cookie, mode) {
-  try {
-    let user_id = await select_user_id_by_cookie(cookie);
-    if (user_id.success) {
-      let user_character = await select_user_character_by_id(user_id.id);
-      let flag_success = user_character.success;
-      let flag_permitted = (user_character.character <= mode);
-      return {
-        success: (flag_success && flag_permitted),
-        message: (flag_success ?
-                  (flag_permitted ? '用户验证成功' : '用户已封禁') :
-                  user_info.message),
-        id: (flag_success && flag_permitted) ? user_id.id : undefined
-      };
-    }
-  } catch (err) {
-    return err;
-  }
-}
-
 function unzip(zipFile, destFolder) {
-
   var zip = new admZip(zipFile);
   var zipEntries = zip.getEntries();
   for(var i=0; i<zipEntries.length; i ++){
