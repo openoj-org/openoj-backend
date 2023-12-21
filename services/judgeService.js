@@ -6,7 +6,7 @@ const {
 } = require("../CURDs/problemCURD");
 const { select_official_data_by_problem_id } = require("../CURDs/dataCURD");
 
-const judgeUrl = "http://localhost:5000";
+const judgeUrl = require("../utils/constant").JUDGE_URL;
 
 // 提交评测
 async function submit(req, res, next) {
