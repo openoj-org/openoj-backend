@@ -45,6 +45,11 @@ function select_data_by_problem_id(problem_id, problem_is_official) {
   return select_multiple_decorator(sql, sqlParams, "样例");
 }
 
+// 返回数据格式和select_data_by_problem_id一样，但是改成查找属于特定子任务的数据
+function select_data_by_subtask_id(subtask_id) {
+  // TODO
+}
+
 function select_official_data_by_problem_id(problem_id) {
   return select_data_by_problem_id(problem_id, 1);
 }
@@ -230,4 +235,6 @@ module.exports = {
    * 　　  } 的 Promise 对象
    */
   delete_workshop_data_by_problem_id,
+
+  select_data_by_subtask_id,
 };
