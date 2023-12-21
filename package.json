@@ -1,37 +1,38 @@
 {
-    "name": "openoj_backend",
-    "version": "1.0.1",
-    "description": "",
-    "author": "zengxb20",
-    "main": "index.js",
-    "dependencies": {
-        "adm-zip": "^0.5.10",
-        "body-parser": "^1.19.0",
-        "boom": "^7.3.0",
-        "compressing": "^1.10.0",
-        "cookie-parser": "^1.4.6",
-        "cors": "^2.8.5",
-        "express": "^4.17.1",
-        "express-validator": "^6.5.0",
-        "fs-extra": "^11.2.0",
-        "iconv-lite": "^0.6.3",
-        "jsonwebtoken": "^8.5.1",
-        "jszip": "^3.10.1",
-        "multer": "^1.4.5-lts.1",
-        "multiparty": "^4.2.3",
-        "mysql": "^2.18.1",
-        "nodemailer": "^6.9.7",
-        "path": "^0.12.7",
-        "uuid": "^9.0.1",
-        "xlsx": "^0.18.5"
-    },
-    "devDependencies": {
-        "crypto": "^1.0.1",
-        "nodemon": "^2.0.4"
-    },
-    "scripts": {
-        "start": "nodemon app.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "license": "ISC"
+  "name": "openoj_backend",
+  "version": "1.0.1",
+  "description": "",
+  "author": "zengxb20",
+  "main": "index.js",
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "axios": "^1.6.2",
+    "body-parser": "^1.19.0",
+    "boom": "^7.3.0",
+    "compressing": "^1.10.0",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "express-validator": "^6.5.0",
+    "fs-extra": "^11.2.0",
+    "iconv-lite": "^0.6.3",
+    "jsonwebtoken": "^8.5.1",
+    "jszip": "^3.10.1",
+    "multer": "^1.4.5-lts.1",
+    "multiparty": "^4.2.3",
+    "mysql": "^2.18.1",
+    "nodemailer": "^6.9.7",
+    "path": "^0.12.7",
+    "uuid": "^9.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "crypto": "^1.0.1",
+    "nodemon": "^2.0.4"
+  },
+  "scripts": {
+    "start": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "AGPL-3.0-or-later"
 }

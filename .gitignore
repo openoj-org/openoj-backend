@@ -2,3 +2,4 @@ node_modules/
 package-lock.json
 static/official_problems/
 static/workshop_problems/
+yarn.lock
