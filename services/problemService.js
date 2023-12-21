@@ -656,7 +656,7 @@ function problem_create(req, res, next) {
           return subtask_info;
         }
 
-        for (let j = 1; j <= data_info.subtasks.)
+        // for (let j = 1; j <= data_info.subtasks.)
 
       }
       /*let subtask = {
