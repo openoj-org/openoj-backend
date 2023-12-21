@@ -50,6 +50,11 @@ function select_data_by_subtask_id(subtask_id) {
   // TODO
 }
 
+// 返回数据格式和select_data_by_problem_id一样，但是改成根据data_id查找数据，并且返回的result属性是一个单个数据的对象，而不是数组
+function select_data_by_id(data_id) {
+  // TODO
+}
+
 function select_official_data_by_problem_id(problem_id) {
   return select_data_by_problem_id(problem_id, 1);
 }
@@ -183,6 +188,8 @@ module.exports = {
   select_official_data_by_problem_id,
 
   select_workshop_data_by_problem_id,
+
+  select_data_by_id,
 
   /* 参数: id,               // int, 样例 id
    * 　　  problem_id,       // int, 官方题目 id

@@ -9,6 +9,7 @@ const {
   select_official_data_by_problem_id,
   select_workshop_data_by_problem_id,
   select_data_by_subtask_id,
+  select_data_by_id,
 } = require("../CURDs/dataCURD");
 const {
   insert_evaluation,
@@ -23,24 +24,29 @@ const {
   select_data_evaluation_by_subtask_evaluation_id,
   update_subtask_evaluation_result_by_id,
   select_evaluations_by_param_order,
+  select_subtask_evaluation_by_id,
+  select_data_evaluation_by_id,
 } = require("../CURDs/evaluationCURD");
-const { select_user_id_by_cookie } = require("../CURDs/userCURD");
+const {
+  select_user_id_by_cookie,
+  select_user_by_id,
+} = require("../CURDs/userCURD");
 
 const judgeUrl = require("../utils/constant").JUDGE_URL;
 
 // 与评测机交互，刷新evaluationId对应的评测的结果
 // 返回结果为对象，success属性表示是否成功，不成功则message属性表示原因
 async function flush_evaluation(evaluationId) {
-  // // 获取评测的目前状态
-  // let tmp = await select_evaluation_by_id(evaluationId);
-  // if (tmp.success == false) {
-  //   return tmp;
-  // }
-  // const { type, problemId, status } = tmp.result;
-  // if (status != null && status != undefined) {
-  //   // 已经更新了评测结果，不用再查询
-  //   return { success: true };
-  // }
+  // 获取评测的目前状态
+  let tmp = await select_evaluation_by_id(evaluationId);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  const { type, problemId, status } = tmp.result;
+  if (status != null && status != undefined) {
+    // 已经更新了评测结果，不用再查询
+    return { success: true };
+  }
   //获取评测机端的对应id
   tmp = await select_evaluation_received_id_by_id(evaluationId);
   if (tmp.success == false) {
@@ -245,6 +251,178 @@ async function list(req, res, next) {
   return;
 }
 
+// 获取评测信息
+async function info(req, res, next) {
+  // 先尝试刷新结果
+  flush_evaluation(req.body.id);
+  // 获取评测信息
+  let tmp = await select_evaluation_by_id(req.body.id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const submissionInfo = tmp.result;
+  // 如果还没评测完
+  if (submissionInfo.status == null || submissionInfo.status == undefined) {
+    res.json({
+      success: true,
+      type: submissionInfo.type,
+      problemId: submissionInfo.problemId,
+      problemTitle: problemTitle,
+      userId: submissionInfo.userId,
+      username: username,
+      language: submissionInfo.language,
+      time: submissionInfo.time,
+      status: "Judging",
+      score: 0,
+      timeCost: 0,
+      memoryCost: 0,
+      subtask: false,
+      dataInfo: [],
+    });
+  }
+  // 获取题目名称
+  tmp =
+    submissionInfo.type == 0
+      ? await select_official_problem_by_id(submissionInfo.problemId)
+      : await select_workshop_problem_by_id(submissionInfo.problemId);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const problemTitle = tmp.result.title;
+  // 获取提交者用户名
+  tmp = await select_user_by_id(submissionInfo.userId);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  // todo: 有时候结果全部包含在result中，有时候结果直接在第一层
+  const username = tmp.username;
+  // 获取题目是否有子任务
+  tmp = await select_evaluation_configs_by_id(
+    submissionInfo.problemId,
+    submissionInfo.type == 0
+  );
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const { isSubtaskUsed } = tmp.result;
+  if (!isSubtaskUsed) {
+    // 如果没有采用子任务
+    tmp = await select_data_evaluation_by_evaluation_id(req.body.id);
+    if (tmp.success == false) {
+      res.json(tmp);
+      return;
+    }
+    const dataInfo = tmp.result;
+    res.json({
+      success: true,
+      type: submissionInfo.type,
+      problemId: submissionInfo.problemId,
+      problemTitle: problemTitle,
+      userId: submissionInfo.userId,
+      username: username,
+      language: submissionInfo.language,
+      time: submissionInfo.time,
+      status: submissionInfo.status,
+      score: submissionInfo.score,
+      timeCost: submissionInfo.timeCost,
+      memoryCost: submissionInfo.memoryCost,
+      subtask: false,
+      dataInfo: dataInfo,
+    });
+    return;
+  } else {
+    // 如果采用了子任务
+    tmp = await select_subtask_evaluation_by_evaluation_id(req.body.id);
+    if (tmp.success == false) {
+      res.json(tmp);
+      return;
+    }
+    const subtaskInfo = tmp.result;
+    res.json({
+      success: true,
+      type: submissionInfo.type,
+      problemId: submissionInfo.problemId,
+      problemTitle: problemTitle,
+      userId: submissionInfo.userId,
+      username: username,
+      language: submissionInfo.language,
+      time: submissionInfo.time,
+      status: submissionInfo.status,
+      score: submissionInfo.score,
+      timeCost: submissionInfo.timeCost,
+      memoryCost: submissionInfo.memoryCost,
+      subtask: true,
+      subtaskInfo: subtaskInfo,
+    });
+    return;
+  }
+}
+
+// 获取子任务评测信息
+async function info_subtask(req, res, next) {
+  let tmp = await select_subtask_evaluation_by_id(req.body.id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const subtaskInfo = tmp.result;
+  tmp = await select_data_evaluation_by_subtask_evaluation_id(req.body.id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const dataInfo = tmp.result;
+  res.json({
+    success: true,
+    status: subtaskInfo.status,
+    score: subtaskInfo.score,
+    timeCost: subtaskInfo.timeCost,
+    memoryCost: subtaskInfo.memoryCost,
+    dataInfo: dataInfo,
+  });
+  return;
+}
+
+const CONTENT_LENGTH = 100;
+
+// 获取单条数据评测信息
+async function info_data(req, res, next) {
+  let tmp = await select_data_evaluation_by_id(req.body.id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const dataInfo = tmp.result;
+  const dataId = dataInfo.data_id;
+  tmp = await select_data_by_id(dataId);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const { input_filename, output_filename } = tmp.result;
+  let inputPart = fs.readFileSync(input_filename);
+  if (inputPart.length > CONTENT_LENGTH)
+    inputPart = inputPart.substring(0, CONTENT_LENGTH);
+  let answerPart = fs.readFileSync(output_filename);
+  if (answerPart.length > CONTENT_LENGTH)
+    answerPart = answerPart.substring(0, CONTENT_LENGTH);
+  res.json({
+    success: true,
+    status: dataInfo.status,
+    score: dataInfo.score,
+    timeCost: dataInfo.timeCost,
+    memoryCost: dataInfo.memoryCost,
+    inputPart: inputPart,
+    outputPart: "暂不支持",
+    answerPart: answerPart,
+    judgeContent: "暂不支持",
+  });
+}
+
 // 提交评测
 async function submit(req, res, next) {
   // 先根据cookie获取用户id
@@ -417,4 +595,7 @@ async function submit(req, res, next) {
 module.exports = {
   submit,
   list,
+  info,
+  info_subtask,
+  info_data,
 };

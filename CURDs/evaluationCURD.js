@@ -283,6 +283,41 @@ function select_evaluation_by_id(evaluation_id) {
 }
 
 /**
+ * 根据id给出一项subtask_evaluation的若干信息
+ * @date 2023/12/21 - 14:31:00
+ * @author Mr_Spade
+ *
+ * @param {*} subtask_evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_subtask_evaluation_by_id(subtask_evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据id给出一项data_evaluation的若干信息
+ * @date 2023/12/21 - 14:31:00
+ * @author Mr_Spade
+ *
+ * @param {*} data_evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * data_id: 数据评测对应的数据的id
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_data_evaluation_by_id(data_evaluation_id) {
+  // TODO
+}
+
+/**
  * 根据evaluation_id获取对应评测记录的evaluation_received_id
  * @date 2023/12/21 - 14:24:30
  * @author Mr_Spade
@@ -320,7 +355,7 @@ function select_data_evaluation_by_evaluation_id(evaluation_id) {
  *
  * @param {*} evaluation_id
  *
- * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * 若成功，返回的对象的result属性为结果，是一个列表，列表中每个元素的各个属性如下：
  * id：子任务评测的id
  * status：一个字符串表示评测状态，没有评测完就是null
  * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
@@ -338,7 +373,7 @@ function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
  *
  * @param {*} subtask_evaluation_id
  *
- * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * 若成功，返回的对象的result属性为结果，result是一个列表，列表中每个元素的各个属性如下：
  * id：数据评测的id
  * status：一个字符串表示评测状态，没有评测完就是null
  * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
@@ -430,6 +465,10 @@ module.exports = {
   insert_data_evaluation,
 
   select_evaluation_by_id,
+
+  select_subtask_evaluation_by_id,
+
+  select_data_evaluation_by_id,
 
   select_evaluation_received_id_by_id,
 
