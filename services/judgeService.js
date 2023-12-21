@@ -6,7 +6,7 @@ const {
 } = require("../CURDs/problemCURD");
 const { select_official_data_by_problem_id } = require("../CURDs/dataCURD");
 
-const judgeUrl = "http://localhost:5000";
+const judgeUrl = require("../utils/constant").JUDGE_URL;
 
 // 提交评测
 async function submit(req, res, next) {
@@ -70,12 +70,12 @@ async function submit(req, res, next) {
     max_time: time,
     max_memory: memory,
     use_spj: isSPJUsed,
-    spj_language: "C++11",
+    spj_language: "C++",
     spj_src: spjCode,
   };
 
-  const response = await axios.post("/submit_code", query);
-  const id = JSON.parse(response.data.data)["task_id"];
+  const response = await axios.post(`${judgeUrl}/submit_code`, query);
+  const id = response.data.id;
 
   // TODO: update database
 
