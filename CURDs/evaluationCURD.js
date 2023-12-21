@@ -25,6 +25,7 @@ function select_workshop_score_by_pid_and_uid(problem_id, user_id) {
   return select_score_by_pid_and_uid(problem_id, user_id, 0);
 }
 
+// 需要更新一下结果中count的获取
 function select_evaluations_by_param_order(
   order,
   increase,
@@ -117,6 +118,7 @@ function select_evaluations_by_param_order(
   }
 
   // SQL 查询语句拼接
+  // TODO: 补充一下count，注意count是不包括start、end限制的情况下，结果的数量，不是包括start、end的限制后结果的数量
   sql = mainStr + whereStr + orderStr + limitStr;
   return select_multiple_decorator(sql, sqlParams, "评测列表");
 }
@@ -191,6 +193,161 @@ function insert_subtask_evaluation(subtask_id, evaluation_id) {
  * data_evaluation_score、data_evaluation_status、data_evaluation_time、data_evaluation_memory为评测结果，暂时先存为NULL，表示还没有结果
  */
 function insert_data_evaluation(data_id, evaluation_id, subtask_evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据id更新一条评测的结果
+ * @date 2023/12/21 - 14:39:29
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ * @param {*} status
+ * @param {*} score
+ * @param {*} timeCost
+ * @param {*} memoryCost
+ */
+function update_evaluation_result_by_id(
+  evaluation_id,
+  status,
+  score,
+  timeCost,
+  memoryCost
+) {
+  // TODO
+}
+
+/**
+ * 根据id更新一条数据评测的结果
+ * @date 2023/12/21 - 14:47:26
+ * @author Mr_Spade
+ *
+ * @param {*} data_evaluation_id
+ * @param {*} status
+ * @param {*} score
+ * @param {*} timeCost
+ * @param {*} memoryCost
+ */
+function update_data_evaluation_result_by_id(
+  data_evaluation_id,
+  status,
+  score,
+  timeCost,
+  memoryCost
+) {
+  // TODO
+}
+
+/**
+ * 根据id更新一条子任务评测的结果
+ * @date 2023/12/21 - 14:47:26
+ * @author Mr_Spade
+ *
+ * @param {*} subtask_evaluation_id
+ * @param {*} status
+ * @param {*} score
+ * @param {*} timeCost
+ * @param {*} memoryCost
+ */
+function update_subtask_evaluation_result_by_id(
+  subtask_evaluation_id,
+  status,
+  score,
+  timeCost,
+  memoryCost
+) {
+  // TODO
+}
+
+/**
+ * 根据id给出一项evaluation的若干信息
+ * @date 2023/12/21 - 14:31:00
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * type：题目类型。0：官方题库，1：创意工坊
+ * problemId：官方题库或创意工坊题目id
+ * userId：用户id
+ * language: 编程语言。目前仅支持“C++11”，“Python3”。
+ * sourceCode：本提交的源代码
+ * time：提交评测的时间
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_evaluation_by_id(evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据evaluation_id获取对应评测记录的evaluation_received_id
+ * @date 2023/12/21 - 14:24:30
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ *
+ * 函数的result返回一个对象，received_id的键值表示对应的结果
+ */
+function select_evaluation_received_id_by_id(evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据evaluation_id获取对应评测记录的所有data_evaluation组成的列表，按照样例顺序升序排序
+ * @date 2023/12/21 - 14:59:12
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * id：数据评测的id
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_data_evaluation_by_evaluation_id(evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据evaluation_id获取对应评测记录的所有subtask_evaluation组成的列表，按照子任务顺序升序排序
+ * @date 2023/12/21 - 14:59:12
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * id：子任务评测的id
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据subtask_evaluation_id获取对应评测记录的所有data_evaluation组成的列表，按照样例顺序升序排序
+ * @date 2023/12/21 - 14:59:12
+ * @author Mr_Spade
+ *
+ * @param {*} subtask_evaluation_id
+ *
+ * 若成功，返回的对象的result属性为结果，result的各个属性如下：
+ * id：数据评测的id
+ * status：一个字符串表示评测状态，没有评测完就是null
+ * score：如果评测结束，则给出评测的分数。如果是属于子任务的数据点，则是没有分数的，给出null
+ * timeCost：该部分评测的用时（单位：毫秒），没评完给null
+ * memoryCost：该部分评测的空间（单位：MB），没评完给null
+ */
+function select_data_evaluation_by_subtask_evaluation_id(
+  subtask_evaluation_id
+) {
   // TODO
 }
 
@@ -271,6 +428,22 @@ module.exports = {
   insert_subtask_evaluation,
 
   insert_data_evaluation,
+
+  select_evaluation_by_id,
+
+  select_evaluation_received_id_by_id,
+
+  select_data_evaluation_by_evaluation_id,
+
+  select_subtask_evaluation_by_evaluation_id,
+
+  select_data_evaluation_by_subtask_evaluation_id,
+
+  update_evaluation_result_by_id,
+
+  update_data_evaluation_result_by_id,
+
+  update_subtask_evaluation_result_by_id,
 
   /* 参数: problemId,       // int, 题目 id
    * 　　  userId,          // int, 用户

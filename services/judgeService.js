@@ -14,10 +14,236 @@ const {
   insert_evaluation,
   insert_data_evaluation,
   insert_subtask_evaluation,
+  select_evaluation_received_id_by_id,
+  select_evaluation_by_id,
+  update_evaluation_result_by_id,
+  update_data_evaluation_result_by_id,
+  select_data_evaluation_by_evaluation_id,
+  select_subtask_evaluation_by_evaluation_id,
+  select_data_evaluation_by_subtask_evaluation_id,
+  update_subtask_evaluation_result_by_id,
+  select_evaluations_by_param_order,
 } = require("../CURDs/evaluationCURD");
 const { select_user_id_by_cookie } = require("../CURDs/userCURD");
 
 const judgeUrl = require("../utils/constant").JUDGE_URL;
+
+// 与评测机交互，刷新evaluationId对应的评测的结果
+// 返回结果为对象，success属性表示是否成功，不成功则message属性表示原因
+async function flush_evaluation(evaluationId) {
+  // // 获取评测的目前状态
+  // let tmp = await select_evaluation_by_id(evaluationId);
+  // if (tmp.success == false) {
+  //   return tmp;
+  // }
+  // const { type, problemId, status } = tmp.result;
+  // if (status != null && status != undefined) {
+  //   // 已经更新了评测结果，不用再查询
+  //   return { success: true };
+  // }
+  //获取评测机端的对应id
+  tmp = await select_evaluation_received_id_by_id(evaluationId);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  const id = tmp.result.received_id;
+  // 获取题目是否有子任务
+  tmp = await select_evaluation_configs_by_id(problemId, type == 0);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  const { isSubtaskUsed } = tmp.result;
+  // 从评测机处查询结果
+  const response = await axios.get(`${judgeUrl}/get_result/${id}`);
+  if (response.ok == false) {
+    //还没评测完，则不进行任何改动
+    return { success: true };
+  } else {
+    // 已经评测完了，开始更新
+    if (!isSubtaskUsed) {
+      // 如果没有采用子任务
+      // 获取数据点评测列表
+      tmp = await select_data_evaluation_by_evaluation_id(evaluationId);
+      if (tmp.success == false) {
+        return tmp;
+      }
+      const dataInfo = tmp.result;
+
+      let allResult = "AC";
+      let allTime = 0;
+      let allMemory = 0;
+
+      // 逐一保存每个数据点的评测信息
+      for (let i = 0; i < dataInfo.length; i++) {
+        info = dataInfo[i];
+        // 更新一条新的数据点评测结果
+        // 获取该数据点的评测结果，如果不是AC，尝试更新整体的结果
+        const status = response.data[i.toString()].success
+          ? "AC"
+          : response.data[i.toString()].error_type;
+        if (status != "AC" && allResult == "AC") {
+          allResult = status;
+        }
+        // 更新整体的时间和空间
+        allTime += response.data[i.toString()].time_usage;
+        allMemory += response.data[i.toString()].memory_usage;
+        // 更新一条新的数据点评测结果
+        tmp = await update_data_evaluation_result_by_id(
+          info.id,
+          status,
+          response.data[i.toString()].score,
+          response.data[i.toString()].time_usage,
+          response.data[i.toString()].memory_usage
+        );
+        if (tmp.success == false) {
+          return tmp;
+        }
+      }
+      // 更新整体结果
+      tmp = await update_evaluation_result_by_id(
+        evaluationId,
+        allResult,
+        response.data.score,
+        allTime,
+        allMemory
+      );
+      if (tmp.success == false) {
+        return tmp;
+      }
+    } else {
+      // 如果采用了子任务
+      // 获取子任务评测列表
+      tmp = await select_subtask_evaluation_by_evaluation_id(evaluationId);
+      if (tmp.success == false) {
+        return tmp;
+      }
+
+      let allResult = "AC";
+      let allTime = 0;
+      let allMemory = 0;
+
+      const subtasks = tmp.result;
+      for (let i = 0; i < subtasks.length; i++) {
+        let subtask = subtasks[i];
+        // 用于保存子任务最终的评测结果
+        let subtaskResult = "AC";
+        let subtaskTime = 0;
+        let subtaskMemory = 0;
+
+        // 获取数据点评测列表
+        tmp = await select_data_evaluation_by_subtask_evaluation_id(subtask.id);
+        if (tmp.success == false) {
+          res.json(tmp);
+          return;
+        }
+        const dataInfo = tmp.result;
+
+        for (let j = 0; j < dataInfo.length; j++) {
+          let info = dataInfo[j];
+          // 更新一条新的数据点评测结果
+          // 获取该数据点的评测结果，如果不是AC，尝试更新子任务的结果
+          const status = response.data[i.toString()][j.toString()].success
+            ? "AC"
+            : response.data[i.toString()][j.toString()].error_type;
+          if (status != "AC" && subtaskResult == "AC") {
+            subtaskResult = status;
+          }
+          //更新子任务的时间和空间
+          subtaskTime += response.data[i.toString()][j.toString()].time_usage;
+          subtaskMemory +=
+            response.data[i.toString()][j.toString()].memory_usage;
+          // 更新一条新的数据点评测结果
+          tmp = await update_data_evaluation_result_by_id(
+            info.id,
+            status,
+            response.data[i.toString()][j.toString()].score,
+            response.data[i.toString()][j.toString()].time_usage,
+            response.data[i.toString()][j.toString()].memory_usage
+          );
+          if (tmp.success == false) {
+            return tmp;
+          }
+        }
+        // 更新一条新的子任务评测结果
+        tmp = await update_subtask_evaluation_result_by_id(
+          subtask.id,
+          subtaskResult,
+          response.data[i.toString()].score,
+          subtaskTime,
+          subtaskMemory
+        );
+        if (tmp.success == false) {
+          return tmp;
+        }
+        // 如果不是AC，尝试更新整体的结果
+        if (subtaskResult != "AC" && allResult == "AC") {
+          allResult = subtaskResult;
+        }
+        // 更新整体的时间和空间
+        allTime += subtaskTime;
+        allMemory += subtaskMemory;
+      }
+    }
+    // 更新整体结果
+    tmp = await update_evaluation_result_by_id(
+      evaluationId,
+      allResult,
+      response.data.score,
+      allTime,
+      allMemory
+    );
+    if (tmp.success == false) {
+      return tmp;
+    }
+  }
+  // 更新成功
+  return { success: true };
+}
+
+// 获取评测列表
+async function list(req, res, next) {
+  // 先获取一遍评测列表
+  let tmp = await select_evaluations_by_param_order(
+    req.body.order,
+    req.body.increase,
+    req.body.problemType,
+    req.body.problemId,
+    req.body.problemKeyword,
+    req.body.userId,
+    req.body.userKeyword,
+    req.body.language,
+    req.body.status,
+    req.body.start,
+    req.body.end
+  );
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  const tmpResult = tmp.result;
+  for (let i = 0; i < tmpResult.length; i++) {
+    let result = tmpResult[i];
+    // 如果有尚未有结果的评测记录，尝试刷新
+    if (result.status == null || result.status == undefined)
+      await flush_evaluation(result.id);
+  }
+  // 再获取一遍评测列表
+  tmp = await select_evaluations_by_param_order(
+    req.body.order,
+    req.body.increase,
+    req.body.problemType,
+    req.body.problemId,
+    req.body.problemKeyword,
+    req.body.userId,
+    req.body.userKeyword,
+    req.body.language,
+    req.body.status,
+    req.body.start,
+    req.body.end
+  );
+  res.json(tmp);
+  return;
+}
 
 // 提交评测
 async function submit(req, res, next) {
@@ -190,4 +416,5 @@ async function submit(req, res, next) {
 
 module.exports = {
   submit,
+  list,
 };
