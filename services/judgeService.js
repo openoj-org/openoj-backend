@@ -74,7 +74,7 @@ async function submit(req, res, next) {
     spj_src: spjCode,
   };
 
-  const response = await axios.post("/submit_code", query);
+  const response = await axios.post(`${judgeUrl}/submit_code`, query);
   const id = JSON.parse(response.data.data)["task_id"];
 
   // TODO: update database
