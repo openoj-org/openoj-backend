@@ -70,7 +70,7 @@ async function submit(req, res, next) {
     max_time: time,
     max_memory: memory,
     use_spj: isSPJUsed,
-    spj_language: "C++11",
+    spj_language: "C++",
     spj_src: spjCode,
   };
 
