@@ -5,7 +5,7 @@ const service = require('../services/evaluateService');
 
 router.get('/evaluation/get-recommend', service.get_recommend);
 
-route.get('/evaluate/get-evalue', service.get_value);
+router.get('/evaluate/get-evalue', service.get_value);
 
 router.get('/evaluation/recommend', service.recommend);
 

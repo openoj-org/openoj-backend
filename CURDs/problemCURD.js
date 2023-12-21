@@ -1,5 +1,5 @@
 const {
-	select_one_decorator, update_decorator
+	select_one_decorator, update_decorator, insert_one_decorator
 } = require('./decorator');
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
@@ -151,24 +151,12 @@ function insert_official_problem(
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
-			   problem_range_and_hint, problem_source) ' + 
-			  `VALUES('${id}', '${title}', '${titleEn}', '${type}', \
-			          '${timeLimit}', '${memoryLimit}', '${background}', \
-					  '${statement}', '${inputStatement}', '${outputStatement}', \
-					  '${rangeAndHint}', '${source}');`;
-	return querySql(sql)
-	.then(result => {
-		return {
-			success: result.affectedRows != 0,
-			message: (result.affectedRows != 0) ? '添加题目成功' : '添加题目失败'
-		};
-	})
-	.catch(err => {
-		return {
-			success: false,
-			message: err.message
-		};
-	});
+			   problem_range_and_hint, problem_source) \
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);';
+	let sqlParams = [id, title, titleEn, type, timeLimit, memoryLimit,
+		             background, statement, inputStatement,
+		             outputStatement, rangeAndHint, source];
+	return insert_one_decorator(sql, sqlParams, '题目');
 }
 
 function update_official_problem(id, param, value) {
