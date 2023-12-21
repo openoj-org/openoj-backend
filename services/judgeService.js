@@ -75,7 +75,7 @@ async function submit(req, res, next) {
   };
 
   const response = await axios.post(`${judgeUrl}/submit_code`, query);
-  const id = JSON.parse(response.data.data)["task_id"];
+  const id = response.data.id;
 
   // TODO: update database
 
