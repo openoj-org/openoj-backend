@@ -111,6 +111,11 @@ function validate_data_zip_extract(extractPath) {
       }
       let i = 0;
       let current_line = 2;
+      let task = {
+        score: 0,
+        caseNum: subtaskNum,
+        subtasks: []
+      };
       while(i < subtaskNum) {
         const subtaskConfigs = lines[current_line].split(' ');
         if (subtaskConfigs.length !== 2) {
@@ -153,8 +158,51 @@ function validate_data_zip_extract(extractPath) {
             current_line ++;
         }
         i++;
+        task.score = task.score + subtask.score;
+        task.subtasks.push(subtask);
       }
-    //返回True，以及subtask
+    //返回True，以及task, task是一个Dict，包含了子任务的信息
+    //TODO
+    }
+    // 不使用子任务
+    else{
+        // 读取测试点信息
+        let caseNum = Number(lines[1]);
+        if (caseNum < 1) {
+            return false;
+        }
+        let i = 0;
+        let current_line = 2;
+        let task = {
+            score: 0,
+            caseNum: caseNum,
+            cases: []
+        }
+        ;
+        while(i < caseNum) {
+            const caseConfigs = lines[current_line].split(' ');
+            if (caseConfigs.length !== 4) {
+                return false;
+            }
+            const caseInput = caseConfigs[0];
+            const caseOutput = caseConfigs[1];
+            const caseScore = Number(caseConfigs[2]);
+            const caseType = Number(caseConfigs[3]);
+            if (caseType !== 0 && caseType !== 1) {
+                return false;
+            }
+            let _case = {
+                input: caseInput,
+                output: caseOutput,
+                score: caseScore,
+                type: caseType
+            };
+            task.score = task.score + _case.score;
+            task.cases.push(_case);
+            i ++;
+            current_line ++;
+        }
+        //返回True，以及task, task是一个Dict，包含了子任务的信息
     //TODO
     }
   });
