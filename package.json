@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "crypto": "^1.0.1",
-    "nodemon": "^2.0.4"
+    "nodemon": "^3.0.2"
   },
   "scripts": {
     "start": "nodemon app.js",

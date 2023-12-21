@@ -1,5 +1,3 @@
-const { select_one_decorator, update_decorator } = require("./decorator");
-
 const {
   select_one_decorator,
   update_decorator,
