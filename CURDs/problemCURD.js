@@ -185,7 +185,7 @@ function insert_official_problem(
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
 			   problem_range_and_hint, problem_source) \
-			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);';
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 	let sqlParams = [id, title, titleEn, type, timeLimit, memoryLimit,
 		             background, statement, inputStatement,
 		             outputStatement, rangeAndHint, source];
@@ -333,4 +333,20 @@ module.exports = {
   update_evaluation_configs_by_id,
 
   select_evaluation_configs_by_id,
+
+  // TODO
+  /* 参数: id
+   * 作用: 返回包含表示删除题目结果的一个对象 {
+   * 　　      // 以下为必有项
+   * 　　      success,       // bool, 表示更新是否成功
+   * 　　      message        // string, 表示返回的消息
+   *           // 以下为 success = true 时存在项
+   *           title,       // string，表示题目的title
+   * 　　  } 的 Promise 对象
+   */
+  select_official_problem_title_by_id,
+
+  // TODO
+  // 参数与返回同上
+  select_workshop_problem_title_by_id,
 };

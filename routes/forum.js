@@ -7,8 +7,8 @@ router.get('/forum/list', service.list);
 
 router.get('/forum/info', service.info);
 
-router.get('/forum/comment', service.comment);
+router.post('/forum/comment', service.comment);
 
-router.get('/forum/post', service.post);
+router.post('/forum/post', service.post);
 
 module.exports = router;
