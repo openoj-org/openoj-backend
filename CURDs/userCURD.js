@@ -1,4 +1,10 @@
-const { select_one_decorator, select_multiple_decorator, insert_one_decorator, update_decorator, delete_decorator } = require('./decorator');
+const {
+  select_one_decorator,
+  select_multiple_decorator,
+  insert_one_decorator,
+  update_decorator,
+  delete_decorator,
+} = require("./decorator");
 
 const {
   querySql,
@@ -247,82 +253,97 @@ function select_first_user_info_by_param(param, value) {
 }
 
 // 根据某一参数排序查询用户列表，返回第 start 至 end 个结果组成的列表
-async function select_users_by_param_order(order, increase, usernameKeyword, start, end) {
-	let sql = 'SELECT user_id AS id, \
+async function select_users_by_param_order(
+  order,
+  increase,
+  usernameKeyword,
+  start,
+  end
+) {
+  let sql =
+    "SELECT user_id AS id, \
 	           user_name AS username, \
 			   user_role AS `character`, \
 			   user_signature AS signature, \
 			   user_register_time AS registerTime, \
-			   user_pass_number AS pass FROM users ';
-	let sqlParams = [];
-	if (usernameKeyword != null) {
-		sql += 'WHERE user_name LIKE ? ';
-		sqlParams.push(usernameKeyword + '%');
-	}
-	sql += ('ORDER BY ? ' + (increase ? 'ASC ' : 'DESC '));
-	sqlParams.push(order);
-	if (start && end) {
-		sql += 'LIMIT ?, ?';
-		sqlParams.push(start);
-		sqlParams.push(end);
-	}
-    
-	let users = await select_multiple_decorator(sql, sqlParams, '用户列表');
-	if (!users.success) {
-		return users;
-	}
-	
-	let count = await select_one_decorator('SELECT COUNT(*) AS count FROM users', [], '用户数量');
-	if (!count.success) {
-		return count;
-	}
+			   user_pass_number AS pass FROM users ";
+  let sqlParams = [];
+  if (usernameKeyword != null) {
+    sql += "WHERE user_name LIKE ? ";
+    sqlParams.push(usernameKeyword + "%");
+  }
+  sql += "ORDER BY ? " + (increase ? "ASC " : "DESC ");
+  sqlParams.push(order);
+  if (start && end) {
+    sql += "LIMIT ?, ?";
+    sqlParams.push(start);
+    sqlParams.push(end);
+  }
 
-	users.count = count.result.count;
-	return users;
+  let users = await select_multiple_decorator(sql, sqlParams, "用户列表");
+  if (!users.success) {
+    return users;
+  }
+
+  let count = await select_one_decorator(
+    "SELECT COUNT(*) AS count FROM users",
+    [],
+    "用户数量"
+  );
+  if (!count.success) {
+    return count;
+  }
+
+  users.count = count.result.count;
+  return users;
 }
 
-function insert_user(name, passwordHash, mail, role, signature)
-{
-	// user_name_modify_time, user_email_modify_time 默认设置为 UTC 毫秒数,
-	// 而 user_pass_number 默认为 0
-	let sql = 'INSERT INTO users(user_name, user_password_hash, user_email, \
-		                         user_role, user_signature, user_register_time) ' + 
-			  `VALUES('${name}', '${passwordHash}', '${mail}', '${role}', '${signature}', '${new Date().getTime()}');`;
-	let sqlParams = [name, passwordHash, mail, role, signature, new Date().getTime()];
-	return insert_one_decorator(sql, sqlParams, '用户');
+function insert_user(name, passwordHash, mail, role, signature) {
+  // user_name_modify_time, user_email_modify_time 默认设置为 UTC 毫秒数,
+  // 而 user_pass_number 默认为 0
+  let sql =
+    "INSERT INTO users(user_name, user_password_hash, user_email, \
+		                         user_role, user_signature, user_register_time) " +
+    `VALUES('${name}', '${passwordHash}', '${mail}', '${role}', '${signature}', '${new Date().getTime()}');`;
+  let sqlParams = [
+    name,
+    passwordHash,
+    mail,
+    role,
+    signature,
+    new Date().getTime(),
+  ];
+  return insert_one_decorator(sql, sqlParams, "用户");
 }
 
-function update_user(id, param, value)
-{
-	let sql = 'UPDATE users SET ? = ?';
-	let sqlParams = [param, value];
-	if (param == 'user_name') {
-		sql += ', ? = ?';
-		sqlParams.push('user_name_change_time');
-		sqlParams.push(new Date().getTime());
-	} else if (param == 'user_email') {
-		sql += ', ? = ?';
-		sqlParams.push('user_email_change_time');
-		sqlParams.push(new Date().getTime());
-	}
-	sql += ' WHERE user_id = ?;';
-	sqlParams.push(id);
+function update_user(id, param, value) {
+  let sql = "UPDATE users SET ? = ?";
+  let sqlParams = [param, value];
+  if (param == "user_name") {
+    sql += ", ? = ?";
+    sqlParams.push("user_name_change_time");
+    sqlParams.push(new Date().getTime());
+  } else if (param == "user_email") {
+    sql += ", ? = ?";
+    sqlParams.push("user_email_change_time");
+    sqlParams.push(new Date().getTime());
+  }
+  sql += " WHERE user_id = ?;";
+  sqlParams.push(id);
 
-	return update_decorator(sql, sqlParams, param + ' ');
+  return update_decorator(sql, sqlParams, param + " ");
 }
 
-function delete_user(id)
-{
-	let sql = 'DELETE FROM users WHERE user_id = ?';
-	let sqlParams = [id];
-	return delete_decorator(sql, sqlParams, '用户');
+function delete_user(id) {
+  let sql = "DELETE FROM users WHERE user_id = ?";
+  let sqlParams = [id];
+  return delete_decorator(sql, sqlParams, "用户");
 }
 
 function insert_cookie(id, cookie) {
-	let sql = 'INSERT INTO cookies(user_id, cookie) ' + 
-			  'VALUES(?, ?);';
-	let sqlParams = [id, cookie];
-	return insert_one_decorator(sql, sqlParams, 'cookie ');
+  let sql = "INSERT INTO cookies(user_id, cookie) " + "VALUES(?, ?);";
+  let sqlParams = [id, cookie];
+  return insert_one_decorator(sql, sqlParams, "cookie ");
 }
 
 function select_user_id_by_cookie(cookie) {
