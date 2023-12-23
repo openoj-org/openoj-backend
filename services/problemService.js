@@ -11,6 +11,7 @@ const {
   select_official_problems_by_param_order,
   update_official_problem,
   insert_official_problem,
+  select_last_evaluation_score_by_pid_and_uid,
 } = require("../CURDs/problemCURD");
 const {
   insert_subtask,
@@ -161,37 +162,41 @@ function validate_problem_zip_extract(extractPath) {
 
 // 检验上传数据的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
 function validate_data_zip_extract(extractPath) {
+  const failValue = {
+    success: false,
+    message: "数据文件格式错误",
+  };
   // 文件名列表
   const dataFiles = fs.readdirSync(extractPath);
 
   // 检查基础的文件列表
   if (!dataFiles.includes("config.txt")) {
-    return { success: false };
+    return failValue;
   }
 
   // 读取 config.txt
   fs.readFile(extractPath + "/config.txt", "utf8", (err, data) => {
     if (err) {
-      return { success: false };
+      return failValue;
     }
 
     // 按行分隔
     const lines = data.split("\n");
     if (lines.length < 1) {
-      return { success: false };
+      return failValue;
     }
 
     // 第一行两个整数
     // 是否采用子任务、是否采用 SPJ
-    const basicConfigs = lines[0].split(" ");
-    if (basicConfigs.length < 2 || basicConfigs.length > 3) {
-      return { success: false };
+    const basicConfigs = lines[0].replace(/\s+/g, " ").split(" ");
+    if (basicConfigs.length < 2) {
+      return failValue;
     }
     if (basicConfigs[0] !== "0" && basicConfigs[0] !== "1") {
-      return { success: false };
+      return failValue;
     }
     if (basicConfigs[1] !== "0" && basicConfigs[1] !== "1") {
-      return { success: false };
+      return failValue;
     }
 
     // 是否使用子任务
@@ -203,7 +208,7 @@ function validate_data_zip_extract(extractPath) {
       (isSPJUsed && basicConfigs.length === 2) ||
       (!isSPJUsed && basicConfigs.length === 3)
     ) {
-      return { success: false };
+      return failValue;
     }
 
     // 若使用 SPJ, 其文件名
@@ -216,7 +221,7 @@ function validate_data_zip_extract(extractPath) {
       let subtasks = [];
       let subtaskNum = Number(lines[1]);
       if (subtaskNum < 1) {
-        return { success: false };
+        return failValue;
       }
       let i = 0;
       let current_line = 2;
@@ -226,15 +231,17 @@ function validate_data_zip_extract(extractPath) {
       //   subtasks: []
       // };
       while (i < subtaskNum) {
-        const subtaskConfigs = lines[current_line].split(" ");
-        if (subtaskConfigs.length !== 2) {
-          return { success: false };
+        const subtaskConfigs = lines[current_line]
+          .replace(/\s+/g, " ")
+          .split(" ");
+        if (subtaskConfigs.length < 2) {
+          return failValue;
         }
         const subtaskCaseNum = Number(subtaskConfigs[0]);
         const subtaskScore = Number(subtaskConfigs[1]);
 
         if (subtaskScore < 1 || subtaskCaseNum < 1) {
-          return { success: false };
+          return failValue;
         }
         // 存储每个子任务的信息
         let subtask = {
@@ -246,15 +253,17 @@ function validate_data_zip_extract(extractPath) {
         current_line++;
         let j = 0;
         while (j < subtaskCaseNum) {
-          const caseConfigs = lines[current_line].split(" ");
-          if (caseConfigs.length !== 3) {
-            return { success: false };
+          const caseConfigs = lines[current_line]
+            .replace(/\s+/g, " ")
+            .split(" ");
+          if (caseConfigs.length < 3) {
+            return failValue;
           }
           const caseInput = caseConfigs[0];
           const caseOutput = caseConfigs[1];
           const caseType = Number(caseConfigs[2]);
           if (caseType !== 0 && caseType !== 1) {
-            return { success: false };
+            return failValue;
           }
           // 存储每个测试点的信息
           let testcase = {
@@ -284,13 +293,13 @@ function validate_data_zip_extract(extractPath) {
             isSPJUsed: isSPJUsed,
             subtasks: subtasks,
           };
-    } // TODO: 不使用子任务
+    }
     // 不使用子任务
     else {
       // 读取测试点信息
       let caseNum = Number(lines[1]);
       if (caseNum < 1) {
-        return { success: false };
+        return failValue;
       }
       let i = 0;
       let current_line = 2;
@@ -300,16 +309,16 @@ function validate_data_zip_extract(extractPath) {
         cases: [],
       };
       while (i < caseNum) {
-        const caseConfigs = lines[current_line].split(" ");
-        if (caseConfigs.length !== 4) {
-          return { success: false };
+        const caseConfigs = lines[current_line].replace(/\s+/g, " ").split(" ");
+        if (caseConfigs.length < 4) {
+          return failValue;
         }
         const caseInput = caseConfigs[0];
         const caseOutput = caseConfigs[1];
         const caseScore = Number(caseConfigs[2]);
         const caseType = Number(caseConfigs[3]);
         if (caseType !== 0 && caseType !== 1) {
-          return { success: false };
+          return failValue;
         }
         let _case = {
           input: caseInput,
@@ -329,13 +338,13 @@ function validate_data_zip_extract(extractPath) {
             isSubtaskUsed: isSubtaskUsed,
             isSPJUsed: isSPJUsed,
             SPJFilename: SPJFilename,
-            subtasks: task.cases,
+            cases: task.cases,
           }
         : {
             success: true,
             isSubtaskUsed: isSubtaskUsed,
             isSPJUsed: isSPJUsed,
-            subtasks: task.cases,
+            cases: task.cases,
           };
     }
   });
@@ -349,11 +358,12 @@ function validate_zip_extract(extractPath) {
     return { success: false, message: "目录有误" };
   }
 
-  let data_info = validate_data_zip_extract(extractPath + "/data");
   let problem_info = validate_problem_zip_extract(extractPath + "/problem");
   if (!problem_info.success) {
     return problem_info;
   }
+
+  let data_info = validate_data_zip_extract(extractPath + "/data");
   if (!data_info.success) {
     return data_info;
   }
@@ -367,7 +377,7 @@ function validate_zip_extract(extractPath) {
   if ((ret.isSubtaskUsed = data_info.isSubtaskUsed)) {
     ret.subtasks = data_info.subtasks;
   } else {
-    ret.cases = data_info.subtasks;
+    ret.cases = data_info.cases;
   }
   ret.info = problem_info.result;
   return ret;
@@ -457,8 +467,16 @@ function problem_list(req, res, next) {
         start,
         end,
       } = req.query;
+      if (typeof evaluation == "string") evaluation = evaluation == "true";
 
-      let problems = await select_official_problems_by_param_order(
+      let userId = null;
+      if (cookie != null && cookie != undefined) {
+        let tmp = await select_user_id_by_cookie(cookie);
+        if (tmp.success == false) return tmp;
+        userId = tmp.id;
+      }
+
+      let tmp = await select_official_problems_by_param_order(
         order,
         increase,
         titleKeyword,
@@ -466,7 +484,44 @@ function problem_list(req, res, next) {
         start,
         end
       );
-      return problems; //TODO add problems to res
+      if (tmp.success == false) return tmp;
+      let problems = tmp.result,
+        count = tmp.count;
+      for (let i = 0; i < problems.length; i++) {
+        let problem = problems[i];
+        if (userId != null) {
+          // 检验 cookie 有效性, 若是则根据用户 id 查询 score
+          if (cookie != null) {
+            let cookie_verified = await authenticate_cookie(cookie, 3);
+            if (cookie_verified.success) {
+              let highest_score = await select_official_score_by_pid_and_uid(
+                id,
+                cookie_verified.id
+              );
+              problem.score = highest_score.success
+                ? highest_score.score
+                : undefined;
+            } else {
+              return cookie_verified;
+            }
+          }
+        }
+        problem.score = tmp.result.score;
+        if (evaluation) {
+          tmp = await select_official_tags_by_id(problem.id);
+          if (tmp.success == false) return tmp;
+          problem.tags = tmp.tags;
+        } else {
+          delete problem.grade;
+        }
+        problems[i] = problem;
+      }
+      // todo: 实现根据tagKeyword筛选
+      return {
+        success: true,
+        result: problems,
+        count: count,
+      };
     },
     false
   );
@@ -510,7 +565,7 @@ function problem_info(req, res, next) {
               ? highest_score.score
               : 0;
           } else {
-            problem_info.message = cookie_verified.message;
+            return cookie_verified;
           }
         }
 

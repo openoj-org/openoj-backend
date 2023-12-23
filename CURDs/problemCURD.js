@@ -18,7 +18,7 @@ function select_official_tags_by_id(id) {
     " AND problem_is_official = 1;";
   return querySql(sql)
     .then((result) => {
-      let flag = result && result.length > 0;
+      let flag = result != null && result != undefined;
       return {
         success: flag,
         message: flag ? "标签查询成功" : "标签不存在",
@@ -117,7 +117,7 @@ function select_workshop_problem_by_id(id) {
   // TODO
 }
 
-function select_official_problems_by_param_order(
+async function select_official_problems_by_param_order(
   order,
   increase,
   titleKeyword,
@@ -126,8 +126,8 @@ function select_official_problems_by_param_order(
   end
 ) {
   let sql = 'SELECT * FROM official_problems WHERE problem_name LIKE "';
-  sql += titleKeyword + '%" AND problem_source LIKE "';
-  sql += sourceKeyword + '%" ORDER BY ';
+  sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+  sql += "%" + sourceKeyword + '%" ORDER BY ';
   sql +=
     order == "grade"
       ? "(problem_grade_sum / (problem_grade_number + 1))"
@@ -137,8 +137,8 @@ function select_official_problems_by_param_order(
     sql += "LIMIT " + start + ", " + end;
   }
   return querySql(sql)
-    .then((probs) => {
-      if (!probs || probs.length == 0) {
+    .then(async (probs) => {
+      if (!probs) {
         return {
           success: false,
           message: "指定范围内题目不存在",
@@ -146,10 +146,20 @@ function select_official_problems_by_param_order(
           result: null,
         };
       } else {
+        let sql =
+          'SELECT COUNT(*) FROM official_problems WHERE problem_name LIKE "';
+        sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+        sql += "%" + sourceKeyword + '%" ORDER BY ';
+        sql +=
+          order == "grade"
+            ? "(problem_grade_sum / (problem_grade_number + 1))"
+            : order;
+        sql += increase ? " ASC " : " DESC ";
+        let [count] = await querySql(sql);
         return {
           success: true,
-          message: "用户列表查询成功",
-          count: probs.length,
+          message: "题目查询成功",
+          count: count,
           result: probs.map((prob) => ({
             id: prob.problem_id,
             title: prob.problem_name,
