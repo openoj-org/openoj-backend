@@ -11,7 +11,7 @@
  Target Server Version : 80035
  File Encoding         : 65001
 
- Date: 23/12/2023 18:02:08
+ Date: 23/12/2023 18:04:03
 */
 
 SET NAMES utf8mb4;
@@ -35,11 +35,12 @@ CREATE TABLE `data`  (
   `problem_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '样例对应问题 id',
   `problem_is_official` tinyint NULL DEFAULT NULL,
   `data_attribute` enum('non_sample','visible_sample','hidden_sample') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'hidden_sample' COMMENT '样例属性，为 3 种枚举值之一',
-  `subtask_number` int NOT NULL DEFAULT 0 COMMENT '样例对应子任务编号',
+  `subtask_number` int NULL DEFAULT 0 COMMENT '样例对应子任务编号',
   `testpoint_number` int NULL DEFAULT 0 COMMENT '样例对应测试点编号',
   `data_input_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '样例的原输入文件名',
   `data_output_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '样例的原输出文件名',
   `data_score` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '样例的分值',
+  `subtask_id` int NULL DEFAULT NULL COMMENT '样例对应子任务 id',
   PRIMARY KEY (`data_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
