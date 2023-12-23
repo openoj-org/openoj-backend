@@ -327,7 +327,7 @@ function update_user(id, param, value) {
   }
   sql += " WHERE user_id = ?;";
   sqlParams.push(Number(id));
-  console.log(sql, sqlParams);
+  // console.log(sql, sqlParams);
   return update_decorator(sql, sqlParams, param + " ");
 }
 
