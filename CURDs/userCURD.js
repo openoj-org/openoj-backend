@@ -268,7 +268,7 @@ async function select_users_by_param_order(
 			   user_register_time AS registerTime, \
 			   user_pass_number AS pass FROM users ";
   let sql2 = "SELECT COUNT(*) AS count FROM users ";
-  let sqlSuffix = '';
+  let sqlSuffix = "";
   let sqlParams = [];
   if (usernameKeyword != null) {
     sqlSuffix += "WHERE user_name LIKE ? ";
@@ -290,7 +290,11 @@ async function select_users_by_param_order(
   if (!users.success) {
     return users;
   }
-  let count = await select_one_decorator(sql2, [usernameKeyword + "%"], "用户数量");
+  let count = await select_one_decorator(
+    sql2,
+    [usernameKeyword + "%"],
+    "用户数量"
+  );
   if (!count.success) {
     return count;
   }
