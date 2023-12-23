@@ -11,7 +11,7 @@
  Target Server Version : 80035
  File Encoding         : 65001
 
- Date: 23/12/2023 12:28:55
+ Date: 23/12/2023 18:02:08
 */
 
 SET NAMES utf8mb4;
@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS `cookies`;
 CREATE TABLE `cookies`  (
   `user_id` int UNSIGNED NOT NULL,
   `cookie` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for data
@@ -42,7 +42,7 @@ CREATE TABLE `data`  (
   `data_score` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '样例的分值',
   PRIMARY KEY (`data_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for data_evaluations
@@ -61,7 +61,7 @@ CREATE TABLE `data_evaluations`  (
   INDEX `sample_id`(`data_id` ASC) USING BTREE,
   INDEX `evaluation_id`(`evaluation_id` ASC) USING BTREE,
   INDEX `subtask_evaluation_id`(`subtask_evaluation_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for email_suffixes
@@ -71,7 +71,7 @@ CREATE TABLE `email_suffixes`  (
   `email_suffix_id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '邮箱后缀 id',
   `email_suffix` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '邮箱后缀',
   PRIMARY KEY (`email_suffix_id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for evaluations
@@ -89,10 +89,12 @@ CREATE TABLE `evaluations`  (
   `evaluation_total_time` int UNSIGNED NULL DEFAULT NULL COMMENT '评测总消耗时间',
   `evaluation_total_memory` int UNSIGNED NULL DEFAULT NULL COMMENT '评测总消耗空间',
   `evaluation_submit_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '评测提交时间',
+  `evaluation_received_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '从评测机方获取的 id',
   PRIMARY KEY (`evaluation_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE,
-  INDEX `user_id`(`user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+  INDEX `user_id`(`user_id` ASC) USING BTREE,
+  INDEX `evaluation_received_id`(`evaluation_received_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for global_settings
@@ -103,7 +105,7 @@ CREATE TABLE `global_settings`  (
   `allow_register` tinyint NOT NULL DEFAULT 1 COMMENT '是否开放注册',
   `have_list` tinyint NOT NULL DEFAULT 1 COMMENT '是否限制邮箱后缀',
   PRIMARY KEY (`global_setting_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for mail_sessions
@@ -118,7 +120,7 @@ CREATE TABLE `mail_sessions`  (
   `mail_session_scene` int NULL DEFAULT NULL COMMENT '会话场景',
   PRIMARY KEY (`mail_session_id`) USING BTREE,
   INDEX `mail`(`mail` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for official_problems
@@ -149,7 +151,7 @@ CREATE TABLE `official_problems`  (
   PRIMARY KEY (`problem_id`) USING BTREE,
   UNIQUE INDEX `problem_id`(`problem_id` ASC) USING BTREE,
   UNIQUE INDEX `problem_english_name`(`problem_english_name` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for posts
@@ -167,7 +169,7 @@ CREATE TABLE `posts`  (
   PRIMARY KEY (`post_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE,
   INDEX `user_id`(`post_submit_user_id` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for ratings
@@ -181,7 +183,7 @@ CREATE TABLE `ratings`  (
   `problem_is_official` tinyint UNSIGNED NOT NULL COMMENT '评分对应题目是否进入官方题库',
   PRIMARY KEY (`rating_id`) USING BTREE,
   INDEX `group_index`(`problem_id` ASC, `rating_submit_user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for recommendations
@@ -194,7 +196,7 @@ CREATE TABLE `recommendations`  (
   PRIMARY KEY (`recommendation_id`) USING BTREE,
   INDEX `recommendation_submit_user_id`(`recommendation_submit_user_id` ASC) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for replies
@@ -209,7 +211,7 @@ CREATE TABLE `replies`  (
   PRIMARY KEY (`reply_id`) USING BTREE,
   INDEX `post_id`(`post_id` ASC) USING BTREE,
   INDEX `user_id`(`reply_submit_user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for subtask_evaluations
@@ -221,10 +223,12 @@ CREATE TABLE `subtask_evaluations`  (
   `evaluation_id` int UNSIGNED NOT NULL COMMENT '（题目）评测 id',
   `subtask_evaluation_score` int UNSIGNED NULL DEFAULT NULL COMMENT '针对子任务评测得分',
   `subtask_evaluation_status` enum('AC','WA','TLE','MLE','RE','UKE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '针对子任务评测状态',
+  `subtask_evaluation_time` int UNSIGNED NULL DEFAULT NULL COMMENT '针对子任务评测耗时间',
+  `subtask_evaluation_memory` int UNSIGNED NULL DEFAULT NULL COMMENT '针对子任务评测耗空间',
   PRIMARY KEY (`subtask_evaluation_id`) USING BTREE,
   INDEX `subtask_id`(`subtask_id` ASC) USING BTREE,
   INDEX `evaluation_id`(`evaluation_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for subtasks
@@ -238,7 +242,7 @@ CREATE TABLE `subtasks`  (
   `problem_is_official` tinyint NOT NULL,
   PRIMARY KEY (`subtask_id`) USING BTREE,
   INDEX `problem_id`(`problem_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for tags
@@ -252,7 +256,7 @@ CREATE TABLE `tags`  (
   PRIMARY KEY (`tag_id`) USING BTREE,
   INDEX `problem_id`(`problem_id` ASC) USING BTREE,
   FULLTEXT INDEX `tag_name`(`tag_name`)
-) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for users
@@ -272,7 +276,7 @@ CREATE TABLE `users`  (
   PRIMARY KEY (`user_id`) USING BTREE,
   UNIQUE INDEX `user_name`(`user_name` ASC) USING BTREE,
   UNIQUE INDEX `user_email`(`user_email` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 68 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 68 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for workshop_problems
@@ -299,6 +303,6 @@ CREATE TABLE `workshop_problems`  (
   `problem_submit_number` int NULL DEFAULT 0 COMMENT '问题提交总次数',
   `problem_pass_number` int NULL DEFAULT 0 COMMENT '问题通过总次数',
   PRIMARY KEY (`problem_id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 SET FOREIGN_KEY_CHECKS = 1;
