@@ -255,7 +255,7 @@ async function select_users_by_param_order(order, increase, usernameKeyword, sta
 			   user_register_time AS registerTime, \
 			   user_pass_number AS pass FROM users ';
 	let sqlParams = [];
-	if (usernameKeyword != null) {
+	if (usernameKeyword != null || usernameKeyword) {
 		sql += 'WHERE user_name LIKE ? ';
 		sqlParams.push(usernameKeyword + '%');
 	}
@@ -278,7 +278,6 @@ async function select_users_by_param_order(order, increase, usernameKeyword, sta
 	}
 
 	users.count = count.result.count;
-	console.log(users);
 	return users;
 }
 
@@ -295,7 +294,7 @@ function insert_user(name, passwordHash, mail, role, signature)
 
 function update_user(id, param, value)
 {
-	let sql = 'UPDATE users SET ? = ?';
+	let sql = 'UPDATE users SET ? = "?"';
 	let sqlParams = [param, value];
 	if (param == 'user_name') {
 		sql += ', ? = ?';
