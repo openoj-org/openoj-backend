@@ -65,27 +65,31 @@ function select_workshop_data_by_problem_id(problem_id) {
 
 function insert_data(
   problem_id,
+  subtask_id,
   problem_is_official,
   attribute,
   subtask_number,
   testpoint_number,
   input_filename,
-  output_filename
+  output_filename,
+  score
 ) {
   let sql =
-    "INSERT INTO data(problem_id, \
+    "INSERT INTO data(problem_id, subtask_id, \
                problem_is_official, data_attribute, \
                subtask_number, testpoint_number, \
-               data_input_filename, data_output_filename) \
-               VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
+               data_input_filename, data_output_filename,data_score) \
+               VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     problem_id,
+    subtask_id,
     problem_is_official ? 1 : 0,
     attribute,
     subtask_number,
     testpoint_number,
     input_filename,
     output_filename,
+    score,
   ];
   return insert_one_decorator(sql, sqlParams, "样例");
 }
@@ -146,6 +150,7 @@ function delete_workshop_data_by_problem_id(problem_id) {
 }
 
 module.exports = {
+  insert_data,
   /* 参数: problem_id       // int, 官方题目 id
    * 作用: 返回官方题目的样例查询的结果 {
    * 　　      // 以下为必有项

@@ -36,6 +36,7 @@ const {
 const {
   delete_official_data_by_problem_id,
   insert_official_data,
+  insert_data,
 } = require("../CURDs/dataCURD");
 const fs = require("fs");
 const fsExt = require("fs-extra");
@@ -568,8 +569,8 @@ function problem_info(req, res, next) {
   );
 }
 
-// 实际用于删除题目的函数，删除和一道题目所有相关的内容，功能包括辅助修改题目执行删除+插入题目的操作
-async function real_problem_delete(id) {
+// 实际用于删除题目数据的函数
+async function real_problem_delete_data(id) {
   // 获取和本题有关的所有评测的id
   let tmp = await select_evaluations_by_problem_id(id, true);
   if (tmp.success == false) {
@@ -642,6 +643,15 @@ async function real_problem_delete(id) {
     return tmp;
   }
   // 成功全部删除
+  return { success: true };
+}
+
+// 实际用于删除题目的函数，删除和一道题目所有相关的内容，功能包括辅助修改题目执行删除+插入题目的操作
+async function real_problem_delete(id) {
+  let tmp = real_problem_delete_data(id);
+  if (tmp.success == false) return tmp;
+  tmp = await delete_official_problem(id);
+  if (tmp.success == false) return tmp;
   return { success: true };
 }
 
@@ -792,9 +802,77 @@ function problem_create_by_file(req, res, next) {
           "problem_use_subtask",
           info.isSubtaskUsed
         );
-        // TODO: 继续插入子任务的数据点
         if (!info.isSubtaskUsed) {
           // 如果不使用子任务
+          const datas = info.cases;
+          for (let i = 1; i <= datas.length; i++) {
+            const data = datas[i - 1];
+            // 初始类型设为不是sample
+            let type = "non_sample";
+            if (data.type == 0) {
+              // 如果该项数据被设置为sample
+              const inputLength = fs
+                .readFileSync(extractDir + "/data/" + data.input)
+                .toString().length;
+              const outputLength = fs
+                .readFileSync(extractDir + "/data/" + data.output)
+                .toString().length;
+              // 过长则设为隐藏样例
+              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+              else type = "visible_sample";
+            }
+            tmp = await insert_data(
+              id,
+              0,
+              true,
+              type,
+              0,
+              i,
+              data.input,
+              data.output,
+              data.score
+            );
+            if (!tmp.success) return tmp;
+          }
+        } else {
+          //使用子任务
+          const subtasks = info.subtasks;
+          for (let i = 1; i <= subtasks.length; i++) {
+            const subtask = subtasks[i - 1];
+            let tmp = insert_subtask(id, true, i, subtask.score);
+            if (!tmp.success) return tmp;
+            const subtaskId = tmp.id;
+            for (let j = 1; j <= subtask.cases; j++) {
+              const data = subtask.cases[j - 1];
+              // 初始类型设为不是sample
+              let type = "non_sample";
+              if (data.type == 0) {
+                // 如果该项数据被设置为sample
+                const inputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.input)
+                  .toString().length;
+                const outputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.output)
+                  .toString().length;
+                // 过长则设为隐藏样例
+                if (inputLength > 50 || outputLength > 50)
+                  type = "hidden_sample";
+                else type = "visible_sample";
+              }
+              tmp = await insert_data(
+                id,
+                subtaskId,
+                true,
+                type,
+                0,
+                j,
+                data.input,
+                data.output,
+                0
+              );
+              if (!tmp.success) return tmp;
+            }
+          }
         }
       } catch (e) {
         return {
