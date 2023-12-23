@@ -406,10 +406,10 @@ async function info_data(req, res, next) {
   const { input_filename, output_filename } = tmp.result;
   let inputPart = fs.readFileSync(input_filename);
   if (inputPart.length > CONTENT_LENGTH)
-    inputPart = inputPart.substring(0, CONTENT_LENGTH);
+    inputPart = inputPart.substring(0, CONTENT_LENGTH) + "...";
   let answerPart = fs.readFileSync(output_filename);
   if (answerPart.length > CONTENT_LENGTH)
-    answerPart = answerPart.substring(0, CONTENT_LENGTH);
+    answerPart = answerPart.substring(0, CONTENT_LENGTH) + "...";
   res.json({
     success: true,
     status: dataInfo.status,
