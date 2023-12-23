@@ -278,6 +278,7 @@ async function select_users_by_param_order(order, increase, usernameKeyword, sta
 	}
 
 	users.count = count.result.count;
+	console.log(users);
 	return users;
 }
 
