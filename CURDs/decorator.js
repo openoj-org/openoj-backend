@@ -49,7 +49,8 @@ function select_multiple_decorator(sql, sqlParams, name) {
         return {
 			success: flag,
 			message: (flag ? `查询${name}成功` : `查询${name}失败`),
-            result: (flag ? results : undefined)
+            result: (flag ? results : undefined),
+            count: (flag ? results : undefined)
 		};
     });
 }

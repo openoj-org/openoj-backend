@@ -133,9 +133,9 @@ function select_mail_code_by_success_session_id(id) {
 
 function insert_mail_code(session_id, mail, code_number, scene) {
 	let sql = `INSERT INTO mail_sessions(mail_session_id, mail, \
-		       mail_code_number, mail_session_scene) \
+		       mail_code_number, mail_session_scene, mail_generate_time) \
 	           VALUES('${session_id}', '${mail}',
-			   '${code_number}', ${scene});`;
+			   '${code_number}', ${scene}, ${new Date().getTime()});`;
 	return querySql(sql)
 	.then(result => {
 		return {

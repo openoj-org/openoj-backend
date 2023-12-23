@@ -2,20 +2,18 @@ const { select_one_decorator } = require('./decorator');
 
 const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
 
-/* 
- * 数据库 posts 需做如下修改方便后续查找
- * 增加 post_submit_user_name 楼主用户名
- * 增加 reply_comment_time 该楼的最后跟帖时间
- * 增加 reply_count 跟贴数量
- * 增加 problem_title 对应的题目标题or Null
- * 
- * 数据库 replies 需做如下修改方便后续查找
- * 增加 reply_submit_user_name 用户名
- * 
- * 在 problemCURD 中，增加
- * select_official_problem_title_by_id	// 通过题目id查找title
- * select_workshop_problem_title_by_id	// 通过题目id查找title
- */
+
+
+function insert_post() {}
+
+
+function update_post() {}
+
+function select_post() {}
+
+function select_post_by_param_order() {}
+function insert_reply(){}
+function select_reply_by_param_order() {}
 
 module.exports = {
 	/* 参数: post_id		// 帖子id

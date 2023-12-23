@@ -1,19 +1,47 @@
 const mysql = require("mysql");
 const config = require("../db/dbConfig");
 
-function connect() {
+function connect_default() {
   const { host, user, password, database } = config;
   return mysql.createConnection({
     host,
     user,
     password,
-    database,
+    database
+  });
+}
+
+function connect(database) {
+  const { host, user, password } = config;
+  return mysql.createConnection({
+    host,
+    user,
+    password,
+    database
+  });
+}
+
+function querySql_default(sql) {
+  const conn = connect();
+  return new Promise((resolve, reject) => {
+    try {
+      conn.query(sql, (err, res) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(res);
+        }
+      });
+    } catch (e) {
+      reject(e);
+    } finally {
+      conn.end();
+    }
   });
 }
 
 function querySql(sql) {
-  const conn = connect();
-  conn.query("USE oj_schema;");
+  const conn = connect('oj_schema');
   return new Promise((resolve, reject) => {
     try {
       conn.query(sql, (err, res) => {
@@ -48,8 +76,8 @@ function queryOne(sql) {
   });
 }
 function modifySql(sql, sqlParams) {
-  const conn = connect();
-  conn.query("USE oj_schema;");
+  const conn = connect('oj_schema');
+  // conn.query("USE oj_schema;");
   return new Promise((resolve, reject) => {
     try {
       conn.query(sql, sqlParams, (err, res) => {
@@ -103,7 +131,9 @@ function toQueryString(arr, haveParentheses) {
 }
 
 module.exports = {
+  connect_default,
   querySql,
+  querySql_default,
   queryOne,
   modifySql,
   toQueryString,

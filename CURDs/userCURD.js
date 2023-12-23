@@ -236,10 +236,10 @@ function select_users_by_param_order(order, increase, usernameKeyword, start, en
 	// console.log(sql);
 	return querySql(sql)
 	.then(users => {
-		if (!users || users.length == 0) {
+		if (!users) {
 			return {
 				success: false,
-				message: '指定范围内用户不存在',
+				message: '查找失败',
 				count: 0,
 				result: null
 			};
@@ -273,8 +273,8 @@ function insert_user(name, passwordHash, mail, role, signature)
 	// user_email_modify_time 默认设置为 UTC 毫秒数,
 	// 而 user_pass_number 默认为 0
 	let sql = 'INSERT INTO users(user_name, user_password_hash, user_email, \
-		                         user_role, user_signature) ' + 
-			  `VALUES('${name}', '${passwordHash}', '${mail}', '${role}', '${signature}');`;
+		                         user_role, user_signature, user_register_time) ' + 
+			  `VALUES('${name}', '${passwordHash}', '${mail}', '${role}', '${signature}', '${new Date().getTime()}');`;
 	return querySql(sql)
 	.then(result => {
 		return {

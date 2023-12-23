@@ -189,13 +189,12 @@ function insert_official_problem(
   rangeAndHint,
   source
 ) {
-  let sql =
-    'INSERT INTO official_problems(problem_id, problem_name, \
+  let sql = 'INSERT INTO official_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
-			   problem_range_and_hint, problem_source) \
-			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+			   problem_range_and_hint, problem_source, problem_submit_time) \
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);';
   let sqlParams = [
     id,
     title,
@@ -209,6 +208,7 @@ function insert_official_problem(
     outputStatement,
     rangeAndHint,
     source,
+    new Date().getTime()
   ];
   return insert_one_decorator(sql, sqlParams, "题目");
 }
@@ -342,7 +342,7 @@ module.exports = {
 
   update_evaluation_configs_by_id,
 
-  select_evaluation_configs_by_id,
+  select_evaluation_configs_by_id//,
 
   // TODO
   /* 参数: id
@@ -354,9 +354,9 @@ module.exports = {
    *           title,       // string，表示题目的title
    * 　　  } 的 Promise 对象
    */
-  select_official_problem_title_by_id,
+  // select_official_problem_title_by_id,
 
   // TODO
   // 参数与返回同上
-  select_workshop_problem_title_by_id,
+  // select_workshop_problem_title_by_id,
 };
