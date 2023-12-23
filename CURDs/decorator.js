@@ -50,7 +50,7 @@ function select_one_decorator(sql, sqlParams, name) {
 function select_multiple_decorator(sql, sqlParams, name) {
   return error_decorator(modifySql.bind(null, sql, sqlParams)).then(
     (results) => {
-      let flag = results != null;
+      let flag = (results != null);
       flag ? {} : console.log(results.message);
       return {
         success: flag,

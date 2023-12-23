@@ -276,15 +276,15 @@ async function select_users_by_param_order(
   sqlParams.push(order);
   if (start && end) {
     sql += "LIMIT ?, ?";
-    sqlParams.push(start);
-    sqlParams.push(end);
+    sqlParams.push(Number(start));
+    sqlParams.push(Number(end));
   }
 
   let users = await select_multiple_decorator(sql, sqlParams, "用户列表");
   if (!users.success) {
     return users;
   }
-
+  console.log(users);
   let count = await select_one_decorator(
     "SELECT COUNT(*) AS count FROM users",
     [],
@@ -318,7 +318,7 @@ function insert_user(name, passwordHash, mail, role, signature) {
 
 function update_user(id, param, value)
 {
-	let sql = 'UPDATE users SET ? = "?"';
+	let sql = 'UPDATE users SET ? = ?';
 	let sqlParams = [param, value];
 	if (param == 'user_name') {
 		sql += ', ? = ?';
