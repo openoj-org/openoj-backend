@@ -770,6 +770,32 @@ function problem_create_by_file(req, res, next) {
         fsExt.copySync(extractDir + "/data", staticDir, { overwrite: true });
         // 将 temp 下的临时文件删除
         fsExt.removeSync(extractDir);
+        // 更新spj信息
+        tmp = await update_official_problem(
+          id,
+          "problem_use_spj",
+          info.isSPJUsed
+        );
+        if (!tmp.success) return tmp;
+        if (info.isSPJUsed) {
+          // 如果使用spj，更新spj路径
+          tmp = await update_official_problem(
+            id,
+            "problem_spj_filename",
+            info.SPJFilename
+          );
+          if (!tmp.success) return tmp;
+        }
+        // 更新是否使用subtask
+        tmp = await update_official_problem(
+          id,
+          "problem_use_subtask",
+          info.isSubtaskUsed
+        );
+        // TODO: 继续插入子任务的数据点
+        if (!info.isSubtaskUsed) {
+          // 如果不使用子任务
+        }
       } catch (e) {
         return {
           success: false,
