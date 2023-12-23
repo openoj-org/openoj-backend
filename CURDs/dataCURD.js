@@ -54,7 +54,6 @@ function select_workshop_data_by_problem_id(problem_id) {
 }
 
 function insert_data(
-  id,
   problem_id,
   problem_is_official,
   attribute,
@@ -64,13 +63,12 @@ function insert_data(
   output_filename
 ) {
   let sql =
-    "INSERT INTO data(data_id, problem_id, \
+    "INSERT INTO data(problem_id, \
                problem_is_official, data_attribute, \
                subtask_number, testpoint_number, \
                data_input_filename, data_output_filename) \
                VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
-    id,
     problem_id,
     problem_is_official ? 1 : 0,
     attribute,
@@ -83,7 +81,6 @@ function insert_data(
 }
 
 function insert_official_data(
-  id,
   problem_id,
   attribute,
   subtask_number,
@@ -92,7 +89,6 @@ function insert_official_data(
   output_filename
 ) {
   return insert_data(
-    id,
     problem_id,
     1,
     attribute,
@@ -104,7 +100,6 @@ function insert_official_data(
 }
 
 function insert_workshop_data(
-  id,
   problem_id,
   attribute,
   subtask_number,
@@ -113,7 +108,6 @@ function insert_workshop_data(
   output_filename
 ) {
   return insert_data(
-    id,
     problem_id,
     0,
     attribute,

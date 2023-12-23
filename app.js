@@ -19,6 +19,7 @@ app.use('/', routes);
 app.use('/static', express.static(__dirname + '/static'));
 
 app.listen(8088, () => {
+	
 	select_user_by_id(1)
 	.then(usr => {
 		if(!usr.success) {

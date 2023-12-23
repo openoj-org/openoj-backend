@@ -1,5 +1,3 @@
-const { select_one_decorator, update_decorator } = require("./decorator");
-
 const {
 	select_one_decorator, update_decorator, insert_one_decorator
 } = require('./decorator');
@@ -180,7 +178,7 @@ function insert_official_problem(
   source
 ) {
   let sql =
-    "INSERT INTO official_problems(problem_id, problem_name, \
+    'INSERT INTO official_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
@@ -193,42 +191,27 @@ function insert_official_problem(
 }
 
 function update_official_problem(id, param, value) {
-  let sql =
-    "UPDATE official_problems SET " +
-    param +
-    " = " +
-    value +
-    " WHERE problem_id = " +
-    id;
-  return querySql(sql)
-    .then((result) => {
-      return {
-        success: result.affectedRows != 0,
-        message: result.affectedRows != 0 ? `${param} 更新成功` : "用户不存在",
-      };
-    })
-    .catch((err) => {
-      return {
-        success: false,
-        message: err.message,
-      };
-    });
+  	let sql = 'UPDATE official_problems SET ? = ? WHERE problem_id = ?;';
+	let sqlParams = [param, value, id];
+	return update_decorator(sql, sqlParams, '官方题目');
+}
+
+function update_workshop_problem(id, param, value) {
+	let sql = 'UPDATE workshop_problems SET ? = ? WHERE problem_id = ?;';
+  	let sqlParams = [param, value, id];
+  	return update_decorator(sql, sqlParams, '工坊题目');
 }
 
 function delete_official_problem(id) {
-  return querySql(`DELETE FROM official_problems WHERE problem_id = '${id}';`)
-    .then((result) => {
-      return {
-        success: result.affectedRows != 0,
-        message: result.affectedRows != 0 ? "题目删除成功" : "id 无效",
-      };
-    })
-    .catch((err) => {
-      return {
-        success: false,
-        message: err.message,
-      };
-    });
+	let sql = 'DELECT FROM official_problems WHERE problem_id = ?;';
+	let sqlParams = [id];
+	return delete_decorator(sql, sqlParams, '官方题目');
+}
+
+function delete_workshop_problem(id) {
+	let sql = 'DELECT FROM workshop_problems WHERE problem_id = ?;';
+	let sqlParams = [id];
+	return delete_decorator(sql, sqlParams, '工坊题目');
 }
 
 module.exports = {
@@ -321,6 +304,7 @@ module.exports = {
    * 　　  } 的 Promise 对象
    */
   update_official_problem,
+  update_workshop_problem,
   /* 参数: id
    * 作用: 返回包含表示删除题目结果的一个对象 {
    * 　　      // 以下为必有项
@@ -329,6 +313,7 @@ module.exports = {
    * 　　  } 的 Promise 对象
    */
   delete_official_problem,
+  delete_workshop_problem,
 
   update_evaluation_configs_by_id,
 

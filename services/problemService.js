@@ -17,7 +17,7 @@ var multiparty = require('multiparty');
 const { select_user_id_by_cookie, select_user_by_id, select_user_character_by_id, authenticate_cookie, insert_cookie } = require('../CURDs/userCURD');
 const { select_official_score_by_pid_and_uid } = require('../CURDs/evaluationCURD');
 const {
-  delete_official_sample_by_problem_id
+  delete_official_data_by_problem_id, insert_official_data
 } = require('../CURDs/dataCURD');
 const fs = require('fs');
 const fsExt = require('fs-extra');
@@ -294,10 +294,10 @@ function problem_samples(req, res, next) {
 // 获取题目列表
 function problem_list(req, res, next) {
   validateFunction(req, res, next, async (req, res, next) => {
-    let {evaluation, cookie, order, increase, titleKeyword, sourceKeyword, tagKeyword, start, end} = req.body;
+    let {evaluation, cookie, order, increase, titleKeyword, sourceKeyword, tagKeyword, start, end} = req.query;
     
     let problems = await select_official_problems_by_param_order(order, increase, titleKeyword, sourceKeyword, start, end);
-
+    return problems;
   }, false);
 }
 
@@ -651,23 +651,30 @@ function problem_create(req, res, next) {
     // 根据 data 解析的结果更新数据库
     if (data_info.isSubtaskUsed) {
       for (let i = 1; i <= data_info.subtasks.length; i++) {
-        let subtask_info = await insert_subtask(id, i, data_info.score);
+        let subtask_info = await insert_subtask(id, 1, i, data_info.subtasks[i - 1].score);
         if (!subtask_info.success) {
           return subtask_info;
         }
 
+        for (let j = 1; j <= data_info.subtasks.cases.length; j++) {
+          let case_info = await insert_official_data(id, subtask_info.cases[j - 1].type ? 'visible_sample' : 'non_sample',
+                                                     i, j, data_info.subtasks.cases.input,
+                                                     data_info.subtasks.cases.output);
+          if (!case_info.success) {
+            return case_info;
+          }
+        }
         // for (let j = 1; j <= data_info.subtasks.)
 
       }
-      /*let subtask = {
+      /* [{score, caseNum, cases: [input, output, type]}]
+      let subtask = {
           score: subtaskScore,
           caseNum: subtaskCaseNum,
           cases: []
         };
           let testcase = {
-            input: caseInput,
-            output: caseOutput,
-            type: caseType
+            
           };
       return (isSPJUsed ? {
         success: true,
