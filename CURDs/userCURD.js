@@ -260,35 +260,37 @@ async function select_users_by_param_order(
   start,
   end
 ) {
-  let sql =
+  let sql1 =
     "SELECT user_id AS id, \
-	           user_name AS username, \
+	       user_name AS username, \
 			   user_role AS `character`, \
 			   user_signature AS signature, \
 			   user_register_time AS registerTime, \
 			   user_pass_number AS pass FROM users ";
+  let sql2 = "SELECT COUNT(*) AS count FROM users ";
+  let sqlSuffix = '';
   let sqlParams = [];
   if (usernameKeyword != null) {
-    sql += "WHERE user_name LIKE ? ";
+    sqlSuffix += "WHERE user_name LIKE ? ";
     sqlParams.push(usernameKeyword + "%");
   }
-  sql += "ORDER BY ? " + (increase ? "ASC " : "DESC ");
-  sqlParams.push(order);
+  sqlSuffix += "ORDER BY " + order + (increase ? " ASC " : " DESC ");
+
+  sql1 += sqlSuffix;
+  sql2 += sqlSuffix;
+
   if (start && end) {
-    sql += "LIMIT ?, ?";
+    sql1 += "LIMIT ?, ?";
     sqlParams.push(Number(start));
-    sqlParams.push(Number(end));
+    sqlParams.push(Number(end) - Number(start) + 1);
   }
 
-  let users = await select_multiple_decorator(sql, sqlParams, "用户列表");
+  // console.log(sql1, sql2)
+  let users = await select_multiple_decorator(sql1, sqlParams, "用户列表");
   if (!users.success) {
     return users;
   }
-  let count = await select_one_decorator(
-    "SELECT COUNT(*) AS count FROM users",
-    [],
-    "用户数量"
-  );
+  let count = await select_one_decorator(sql2, [usernameKeyword + "%"], "用户数量");
   if (!count.success) {
     return count;
   }
