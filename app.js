@@ -8,9 +8,6 @@ const { Result } = require("express-validator");
 const Mail = require("nodemailer/lib/mailer");
 const sha512 = require("crypto-js/sha512");
 const app = express();
-// const { select_user_by_id, select_users_by_param_order, select_user_by_name,
-// 	select_full_user_by_email, select_full_user_by_id, select_full_user_by_name,
-// 	insert_user, update_user, delete_user, select_email_suffixes, select_user_by_email } = require('../CURDs/userCURD');
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
