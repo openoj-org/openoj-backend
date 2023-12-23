@@ -24,13 +24,13 @@ router.post('/problem/delete', service.problem_delete);
 router.post('/problem/change-by-file', upload.single('data'), service.problem_change_by_file);
 
 // 修改题目数据
-router.post('/problem/change-data', service.problem_change_data);
+router.post('/problem/change-data', upload.single('data'), service.problem_change_data);
 
 // 修改题目元数据
 router.post('/problem/change-meta', service.problem_change_meta);
 
 // 用文件创建题目
-router.post('/problem/create-by-file', service.problem_create_by_file);
+router.post('/problem/create-by-file', upload.single('data'), service.problem_create_by_file);
 
 // 创建题目
 router.post('/problem/create', service.problem_create);

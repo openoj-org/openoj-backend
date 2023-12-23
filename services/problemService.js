@@ -74,7 +74,55 @@ function extractToTemp(file) {
 
 // 检验上传配置的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
 function validate_problem_zip_extract(extractPath) {
-  return {success: true}
+  // 文件名列表
+  const dataFiles = fs.readdirSync(extractPath);
+
+  // 检查基础的文件列表
+  if (!dataFiles.includes('description.md') ||
+      !dataFiles.includes('inputStatement.md') ||
+      !dataFiles.includes('outputStatement.md') ||
+      !dataFiles.includes('rangeAndHint.md') ||
+      !dataFiles.includes('summary.txt')) {
+    return { success: false, message: '文件缺失' };
+  }
+
+  // 读取 summary.txt
+  fs.readFile(extractPath + '/config.txt', 'utf8', (err, data) => {
+    if (err) {
+      return { success: false, message: '读取文件失败' };
+    }
+
+    // 按行分隔
+    const lines = data.split('\n');
+    if (lines.length < 5 || lines.length > 6) {
+      return { success: false, message: '文件格式有误' };
+    }
+
+    /*题目名称。
+第二行填写题目英文名称。
+第三行填写题目类型，是一个非负整数：0 （代表传统型），1（代表...）。
+第四行填写时间限制，是一个正整数，单位：毫秒。
+第五行填写空间限制，是一个正整数，单位：MB。
+第六行填写题目来源，如果没有则可以只写前五行。 */
+    let obj = {};
+    obj.title = lines[0];
+    obj.titleEn = lines[1];
+    if ((obj.type = Number(lines[2])) != 0) {
+      return { success: false, message: '文件格式有误' };
+    }
+    obj.timeLimit = Number(lines[3]);
+    obj.memoryLimit = Number(lines[4]);
+    if (lines.length == 6) {
+      obj.source = lines[5];
+    } else {
+      obj.source = '';
+    }
+  });
+  return {
+    success: true,
+    message: '',
+    result: obj
+  }
 }
 
 // 检验上传数据的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
@@ -204,7 +252,7 @@ function validate_data_zip_extract(extractPath) {
         // 读取测试点信息
         let caseNum = Number(lines[1]);
         if (caseNum < 1) {
-            return false;
+            return { success: false };
         }
         let i = 0;
         let current_line = 2;
@@ -217,14 +265,14 @@ function validate_data_zip_extract(extractPath) {
         while(i < caseNum) {
             const caseConfigs = lines[current_line].split(' ');
             if (caseConfigs.length !== 4) {
-                return false;
+              return { success: false };
             }
             const caseInput = caseConfigs[0];
             const caseOutput = caseConfigs[1];
             const caseScore = Number(caseConfigs[2]);
             const caseType = Number(caseConfigs[3]);
             if (caseType !== 0 && caseType !== 1) {
-                return false;
+              return { success: false };
             }
             let _case = {
                 input: caseInput,
@@ -263,34 +311,28 @@ function validate_zip_extract(extractPath) {
     return { success: false, message: '目录有误' };
   }
 
-  // data 和 question 目录下分别的文件名列表
-  const dataFiles = fs.readdirSync(extractPath + '/data');
-  const questionFiles = fs.readdirSync(extractPath + '/question');
-
-  // 检查基础的文件列表
-  if (!questionFiles.includes('summary.txt') ||
-      !questionFiles.includes('description.md') ||
-      !questionFiles.includes('inputStatement.md') ||
-      !questionFiles.includes('outputStatement.md') ||
-      !questionFiles.includes('rangeAndHint.md')) {
-    return false; //TODO 返回错误信息 dict
-  }
-  if (!dataFiles.includes('config.txt')) {
-    return false; //TODO 返回错误信息 dict
-  }
-
   let data_info = validate_data_zip_extract(extractPath + '/data');
   let problem_info = validate_problem_zip_extract(extractPath + '/problem');
+  if (!problem_info.success) {
+    return problem_info;
+  }
+  if (!data_info.success) {
+    return data_info;
+  }
+  
   let ret = {};
-  ret.success = data_info.success && problem_info.success;
-  ret.message = ((!data_info.success) ?
-                 '数据文件解析失败' :
-                 (problem_info.success ? '解析成功' : '配置文件解析失败'));
-  ret.isSubtaskUsed = data_info.isSubtaskUsed;
+  ret.success = true;
+  ret.message = '';
   (ret.isSPJUsed = data_info.isSPJUsed) ?
   (ret.SPJFilename = data_info.SPJFilename) :
   {};
-  //TODO return ret;
+  if (ret.isSubtaskUsed = data_info.isSubtaskUsed) {
+    ret.subtasks = data_info.subtasks;
+  } else {
+    ret.cases = data_info.subtasks;
+  }
+  ret.info  = problem_info.result;
+  return ret;
 }
 
 // 获取题目样例文件
@@ -725,27 +767,9 @@ function problem_create(req, res, next) {
         // for (let j = 1; j <= data_info.subtasks.)
 
       }
-      /* [{score, caseNum, cases: [input, output, type]}]
-      let subtask = {
-          score: subtaskScore,
-          caseNum: subtaskCaseNum,
-          cases: []
-        };
-          let testcase = {
-            
-          };
-      return (isSPJUsed ? {
-        success: true,
-        isSubtaskUsed: isSubtaskUsed,
-        isSPJUsed: isSPJUsed,
-        SPJFilename: SPJFilename,
-        subtasks: subtasks
-      } : {
-        success: true,
-        isSubtaskUsed: isSubtaskUsed,
-        isSPJUsed: isSPJUsed,
-        subtasks: subtasks
-      }); */
+      
+    } else {
+      
     }
 
     // 问题配置的路径
