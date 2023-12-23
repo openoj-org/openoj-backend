@@ -12,7 +12,10 @@ const {
   update_official_problem,
   insert_official_problem,
 } = require("../CURDs/problemCURD");
-const { insert_subtask } = require("../CURDs/subtaskCURD");
+const {
+  insert_subtask,
+  delete_subtask_by_problem_id,
+} = require("../CURDs/subtaskCURD");
 // const { error } = require('console');
 // const { setCookie } = require('undici-types');
 // const { user } = require('../db/dbConfig');
@@ -26,6 +29,9 @@ const {
 } = require("../CURDs/userCURD");
 const {
   select_official_score_by_pid_and_uid,
+  select_evaluations_by_problem_id,
+  delete_data_evaluation_by_evaluation_id,
+  delete_subtask_evaluation_by_evaluation_id,
 } = require("../CURDs/evaluationCURD");
 const {
   delete_official_data_by_problem_id,
@@ -42,6 +48,15 @@ const {
   insert_official_sample,
   delete_official_sample_by_question_id,
 } = require("../CURDs/dataCURD");
+const {
+  delete_rating_by_pid,
+  delete_tags_by_id,
+} = require("../CURDs/ratingCURD");
+const {
+  select_posts_by_problem_id,
+  delete_reply_by_post_id,
+  delete_post_by_problem_id,
+} = require("../CURDs/forumCURD");
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -555,8 +570,14 @@ function problem_info(req, res, next) {
 
 // 实际用于删除题目的函数，删除和一道题目所有相关的内容，功能包括辅助修改题目执行删除+插入题目的操作
 async function real_problem_delete(id) {
-  // 先获取是否有spj和子任务
-  let tmp = await select_evaluation_configs_by_id(id, true);
+  // 获取和本题有关的所有评测的id
+  let tmp = await select_evaluations_by_problem_id(id, true);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  const evaluations = tmp.result;
+  // 获取是否有spj和子任务
+  tmp = await select_evaluation_configs_by_id(id, true);
   if (tmp.success == false) {
     return tmp;
   }
@@ -565,13 +586,63 @@ async function real_problem_delete(id) {
   if (isSPJUsed) {
     fs.rmSync(SPJFilename);
   }
-  if (!isSubtaskUsed) {
-    // 如果不采用subtask，删除所有测试点
-    tmp = await delete_official_data_by_problem_id(id);
+  // 删除所有数据点
+  tmp = await delete_official_data_by_problem_id(id);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  // 删除所有数据点的评测记录
+  for (let evaluation of evaluations) {
+    tmp = await delete_data_evaluation_by_evaluation_id(evaluation.id);
     if (tmp.success == false) {
       return tmp;
     }
   }
+  if (isSubtaskUsed) {
+    // 如果采用subtask，同时删除子任务及其评测记录
+    tmp = await delete_subtask_by_problem_id(id, true);
+    if (tmp.success == false) {
+      return tmp;
+    }
+    // 删除所有子任务的评测记录
+    for (let evaluation of evaluations) {
+      tmp = await delete_subtask_evaluation_by_evaluation_id(evaluation.id);
+      if (tmp.success == false) {
+        return tmp;
+      }
+    }
+  }
+  // 删除所有评分信息
+  tmp = await delete_rating_by_pid(id, true);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  // 由于官方题库没有recommendation，跳过这一段的删除
+  // 删除所有标签信息
+  tmp = await delete_tags_by_id(id, true);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  //获取所有题目相关的帖子
+  tmp = await select_posts_by_problem_id(id, true);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  const posts = tmp.result;
+  // 删除所有相关回复
+  for (let post of posts) {
+    tmp = await delete_reply_by_post_id(post.id);
+    if (tmp.success == false) {
+      return tmp;
+    }
+  }
+  // 删除所有相关的帖子
+  tmp = await delete_post_by_problem_id(id, true);
+  if (tmp.success == false) {
+    return tmp;
+  }
+  // 成功全部删除
+  return { success: true };
 }
 
 // 删除题目
@@ -590,26 +661,30 @@ function problem_delete(req, res, next) {
         return cookie_verified;
       }
 
-      // 删除题目的数据文件
-      let fileStoragePath = "./static/官方题库/" + id;
-      fs.unlinkSync(fileStoragePath);
-
-      // 删除数据库中的样例和问题
-      let flag_sample = await delete_official_sample_by_problem_id(id).success;
-      let flag_problem = await delete_official_problem(id).success;
-
-      return {
-        success: flag_sample && flag_problem,
-        message: "删除题目" + (flag_sample && flag_problem ? "成功" : "失败"),
-      };
+      // 调用真正的删除
+      return await real_problem_delete(id);
     },
     true
   );
 }
 
 // 用文件修改题目
-function problem_change_by_file(req, res, next) {
-  // TODO
+async function problem_change_by_file(req, res, next) {
+  let { cookie, id } = req.body;
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 1);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
+  let tmp = await real_problem_delete(id);
+  if (!tmp.success) {
+    res.json(tmp);
+    return;
+  }
+  // 直接在删除后调用创建题目的过程
+  problem_create_by_file(req, res, next);
+  return;
 }
 
 // 用文件创建题目

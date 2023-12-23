@@ -128,6 +128,7 @@ function insert_workshop_data(
   );
 }
 
+// todo: 如果有时间最好删除一下相关的数据文件，没时间就算了
 function delete_data_by_problem_id(problem_id, problem_is_official) {
   let sql =
     "DELETE FROM data WHERE problem_id = ? \
