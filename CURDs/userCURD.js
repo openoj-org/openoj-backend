@@ -127,7 +127,7 @@ function select_user_character_by_id(id) {
   let sql =
     "SELECT user_role AS `character` \
 	           FROM users WHERE user_id = ?;";
-  let sqlParams = [id];
+  let sqlParams = [Number(id)];
   return select_one_decorator(sql, sqlParams, "用户身份");
 }
 
@@ -317,32 +317,30 @@ function insert_user(name, passwordHash, mail, role, signature) {
 
 function update_user(id, param, value)
 {
-	let sql = 'UPDATE users SET ? = ?';
-	let sqlParams = [param, value];
+	let sql = 'UPDATE users SET ' + param + ' = ?';
+	let sqlParams = [value];
 	if (param == 'user_name') {
-		sql += ', ? = ?';
-		sqlParams.push('user_name_change_time');
+		sql += ', user_name_change_time = ?';
 		sqlParams.push(new Date().getTime());
 	} else if (param == 'user_email') {
-		sql += ', ? = ?';
-		sqlParams.push('user_email_change_time');
+		sql += ', user_email_change_time = ?';
 		sqlParams.push(new Date().getTime());
 	}
 	sql += ' WHERE user_id = ?;';
-	sqlParams.push(id);
-
+	sqlParams.push(Number(id));
+	console.log(sql, sqlParams);
   return update_decorator(sql, sqlParams, param + " ");
 }
 
 function delete_user(id) {
   let sql = "DELETE FROM users WHERE user_id = ?";
-  let sqlParams = [id];
+  let sqlParams = [Number(id)];
   return delete_decorator(sql, sqlParams, "用户");
 }
 
 function insert_cookie(id, cookie) {
   let sql = "INSERT INTO cookies(user_id, cookie) " + "VALUES(?, ?);";
-  let sqlParams = [id, cookie];
+  let sqlParams = [Number(id), cookie];
   return insert_one_decorator(sql, sqlParams, "cookie ");
 }
 
