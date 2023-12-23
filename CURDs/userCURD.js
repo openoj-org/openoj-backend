@@ -284,7 +284,6 @@ async function select_users_by_param_order(
   if (!users.success) {
     return users;
   }
-  console.log(users);
   let count = await select_one_decorator(
     "SELECT COUNT(*) AS count FROM users",
     [],
