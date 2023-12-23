@@ -1,8 +1,15 @@
 const {
-	select_one_decorator, update_decorator, insert_one_decorator
-} = require('./decorator');
+  select_one_decorator,
+  update_decorator,
+  insert_one_decorator,
+} = require("./decorator");
 
-const { querySql, queryOne, modifySql, toQueryString } = require('../utils/index');
+const {
+  querySql,
+  queryOne,
+  modifySql,
+  toQueryString,
+} = require("../utils/index");
 
 function select_official_tags_by_id(id) {
   let sql =
@@ -105,6 +112,11 @@ function select_official_problem_by_id(id) {
   });
 }
 
+// select_official_problem_by_id的创意工坊版本
+function select_workshop_problem_by_id(id) {
+  // TODO
+}
+
 function select_official_problems_by_param_order(
   order,
   increase,
@@ -183,11 +195,22 @@ function insert_official_problem(
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
 			   problem_range_and_hint, problem_source) \
-			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);';
-	let sqlParams = [id, title, titleEn, type, timeLimit, memoryLimit,
-		             background, statement, inputStatement,
-		             outputStatement, rangeAndHint, source];
-	return insert_one_decorator(sql, sqlParams, '题目');
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  let sqlParams = [
+    id,
+    title,
+    titleEn,
+    type,
+    timeLimit,
+    memoryLimit,
+    background,
+    statement,
+    inputStatement,
+    outputStatement,
+    rangeAndHint,
+    source,
+  ];
+  return insert_one_decorator(sql, sqlParams, "题目");
 }
 
 function update_official_problem(id, param, value) {
@@ -249,6 +272,8 @@ module.exports = {
    * 　　  } 的 Promise 对象, 缺少 score, tags 和 samples
    */
   select_official_problem_by_id,
+
+  select_workshop_problem_by_id,
   /* 参数: order,            // string, 'id'/'title'/'grade'
    * 　　                    // 表示 id/标题/评分 字段
    * 　　  increase,         // bool, 表示 升/降 序排列
@@ -318,4 +343,20 @@ module.exports = {
   update_evaluation_configs_by_id,
 
   select_evaluation_configs_by_id,
+
+  // TODO
+  /* 参数: id
+   * 作用: 返回包含表示删除题目结果的一个对象 {
+   * 　　      // 以下为必有项
+   * 　　      success,       // bool, 表示更新是否成功
+   * 　　      message        // string, 表示返回的消息
+   *           // 以下为 success = true 时存在项
+   *           title,       // string，表示题目的title
+   * 　　  } 的 Promise 对象
+   */
+  select_official_problem_title_by_id,
+
+  // TODO
+  // 参数与返回同上
+  select_workshop_problem_title_by_id,
 };

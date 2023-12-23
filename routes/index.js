@@ -4,6 +4,7 @@ const express = require('express');
 const userRouter = require('./users');
 const problemRouter = require('./problems');
 const workshopRouter = require('./workshop');
+const forumRouter = require('./forum');
 
 const router = express.Router();
 
@@ -21,4 +22,5 @@ router.use((err, req, res, next) => {
 router.use('/', userRouter); // 注入用户路由模块
 router.use('/', problemRouter); // 注入官方题库路由模块
 router.use('/', workshopRouter);
+router.use('/', forumRouter);
 module.exports = router;
