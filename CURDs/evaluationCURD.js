@@ -489,6 +489,43 @@ function select_data_evaluation_by_subtask_evaluation_id(
   // TODO
 }
 
+/**
+ * 根据题目id，查找它的所有evaluation的信息，只需要一个属性
+ * @date 2023/12/23 - 17:15:19
+ * @author Mr_Spade
+ *
+ * @param {*} problem_id
+ * @param {*} problem_is_official
+ *
+ * 返回值有一个result属性，是一个数组，数组里的每一个元素描述一个属于该题目的评测记录，包含属性为：
+ * id：评测id
+ */
+function select_evaluations_by_problem_id(problem_id, problem_is_official) {
+  // TODO
+}
+
+/**
+ * 根据评测id，删除所有属于这个评测的data_evaluation
+ * @date 2023/12/23 - 17:20:16
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ */
+function delete_data_evaluation_by_evaluation_id(evaluation_id) {
+  // TODO
+}
+
+/**
+ * 根据评测id，删除所有属于这个评测的subtask_evaluation
+ * @date 2023/12/23 - 17:20:16
+ * @author Mr_Spade
+ *
+ * @param {*} evaluation_id
+ */
+function delete_subtask_evaluation_by_evaluation_id(evaluation_id) {
+  // TODO
+}
+
 module.exports = {
   /* 参数: problem_id,      // int, 官方题目 id
    * 　　  user_id          // int, 评测用户 id
@@ -606,4 +643,9 @@ module.exports = {
   //select_subtask_evaluation_by_id,
 
   //select_sample_evaluation_by_id
+  select_evaluations_by_problem_id,
+
+  delete_data_evaluation_by_evaluation_id,
+
+  delete_subtask_evaluation_by_evaluation_id,
 };

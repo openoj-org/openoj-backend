@@ -64,6 +64,18 @@ function delete_workshop_rating(problem_id, user_id) {
 }
 
 /**
+ * 根据pid删除所有相关的rating
+ * @date 2023/12/23 - 17:27:46
+ * @author Mr_Spade
+ *
+ * @param {*} problem_id
+ * @param {*} problem_is_official
+ */
+function delete_rating_by_pid(problem_id, problem_is_official) {
+  // TODO
+}
+
+/**
  * 根据pid和uid获取用户是否进行了推荐
  * @date 2023/12/21 - 17:43:19
  * @author Mr_Spade
@@ -99,6 +111,17 @@ function insert_recommendation_by_pid_and_uid(problem_id, user_id) {
  * @param {*} user_id
  */
 function delete_recommendation_by_pid_and_uid(problem_id, user_id) {
+  // TODO
+}
+
+/**
+ * 根据pid删除所有相关推荐
+ * @date 2023/12/21 - 17:53:36
+ * @author Mr_Spade
+ *
+ * @param {*} problem_id
+ */
+function delete_recommendation_by_pid(problem_id) {
   // TODO
 }
 
@@ -207,4 +230,8 @@ module.exports = {
   insert_tags_by_id,
 
   delete_tags_by_id,
+
+  delete_recommendation_by_pid,
+
+  delete_rating_by_pid,
 };

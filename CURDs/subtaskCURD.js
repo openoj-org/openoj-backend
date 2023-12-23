@@ -13,7 +13,20 @@ function select_subtask_by_problem_id(problem_id, problem_is_official) {
   // TODO
 }
 
+/**
+ * 根据problem id，删除所有相关的subtask的信息
+ * @date 2023/12/23 - 17:10:06
+ * @author Mr_Spade
+ *
+ * @param {*} problem_id
+ * @param {*} problem_is_official
+ */
+function delete_subtask_by_problem_id(problem_id, problem_is_official) {
+  // TODO
+}
+
 module.exports = {
   insert_subtask,
   select_subtask_by_problem_id,
+  delete_subtask_by_problem_id,
 };

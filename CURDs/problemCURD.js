@@ -189,12 +189,13 @@ function insert_official_problem(
   rangeAndHint,
   source
 ) {
-  let sql = 'INSERT INTO official_problems(problem_id, problem_name, \
+  let sql =
+    "INSERT INTO official_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
 			   problem_range_and_hint, problem_source, problem_submit_time) \
-			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);';
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     id,
     title,
@@ -208,33 +209,35 @@ function insert_official_problem(
     outputStatement,
     rangeAndHint,
     source,
-    new Date().getTime()
+    new Date().getTime(),
   ];
   return insert_one_decorator(sql, sqlParams, "题目");
 }
 
+// TODO: 参数名不能使用?，需要修改
 function update_official_problem(id, param, value) {
-  	let sql = 'UPDATE official_problems SET ? = ? WHERE problem_id = ?;';
-	let sqlParams = [param, value, id];
-	return update_decorator(sql, sqlParams, '官方题目');
+  let sql = "UPDATE official_problems SET ? = ? WHERE problem_id = ?;";
+  let sqlParams = [param, value, id];
+  return update_decorator(sql, sqlParams, "官方题目");
 }
 
+// TODO: 参数名不能使用?，需要修改
 function update_workshop_problem(id, param, value) {
-	let sql = 'UPDATE workshop_problems SET ? = ? WHERE problem_id = ?;';
-  	let sqlParams = [param, value, id];
-  	return update_decorator(sql, sqlParams, '工坊题目');
+  let sql = "UPDATE workshop_problems SET ? = ? WHERE problem_id = ?;";
+  let sqlParams = [param, value, id];
+  return update_decorator(sql, sqlParams, "工坊题目");
 }
 
 function delete_official_problem(id) {
-	let sql = 'DELECT FROM official_problems WHERE problem_id = ?;';
-	let sqlParams = [id];
-	return delete_decorator(sql, sqlParams, '官方题目');
+  let sql = "DELECT FROM official_problems WHERE problem_id = ?;";
+  let sqlParams = [id];
+  return delete_decorator(sql, sqlParams, "官方题目");
 }
 
 function delete_workshop_problem(id) {
-	let sql = 'DELECT FROM workshop_problems WHERE problem_id = ?;';
-	let sqlParams = [id];
-	return delete_decorator(sql, sqlParams, '工坊题目');
+  let sql = "DELECT FROM workshop_problems WHERE problem_id = ?;";
+  let sqlParams = [id];
+  return delete_decorator(sql, sqlParams, "工坊题目");
 }
 
 module.exports = {
@@ -342,7 +345,7 @@ module.exports = {
 
   update_evaluation_configs_by_id,
 
-  select_evaluation_configs_by_id//,
+  select_evaluation_configs_by_id, //,
 
   // TODO
   /* 参数: id
