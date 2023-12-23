@@ -128,6 +128,7 @@ function user_list(req, res, next) {
     next,
     async (req, res, next) => {
       let { order, increase, usernameKeyword, start, end } = req.query;
+      increase = (increase == 'true');
       switch (order) {
         case "id": {
           order = "user_id";
