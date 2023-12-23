@@ -9,6 +9,7 @@ const {
   select_multiple_decorator,
   insert_one_decorator,
   update_decorator,
+  delete_decorator,
 } = require("./decorator");
 
 const fsExt = require('fs-extra');
@@ -168,8 +169,8 @@ async function insert_evaluation(
     (problemType ? 'workshop' : 'official') +
     '_problem/' + problemId + '/' + userId + '/' + randomUUID();
   try {
-    await fs.ensureFile('./static/evaluations/' + sourceFile);
-    await fs.writeFile(sourceFile, sourceCode);
+    await fsExt.ensureFile('./static/evaluations/' + sourceFile);
+    await fsExt.writeFile(sourceFile, sourceCode, 'utf8');
     console.log('代码文件创建成功');
   } catch (err) {
     return {
@@ -382,13 +383,36 @@ async function select_evaluation_by_id(evaluation_id) {
   'WHERE evaluation_id = ?;';
   let sqlParams = [evaluation_id];
   let evalaution_info = await select_one_decorator(sql, sqlParams, '评测记录');
-  // TODO: 判断评测状态并修改相应字段
+  if (!evalaution_info.success) {
+    return evalaution_info;
+  }
+
+  // 通过源代码路径读取内容, 将代码附加到结果
+  try {
+    evalaution_info.result.sourceCode = await fsExt.readFile(
+      './static/evaluations/' + evalaution_info.result.sourceFile,
+      'utf8'
+    );
+  } catch (e) {
+    return {
+      success: false,
+      message: e.message
+    }
+  }
+
+  if (evalaution_info.result.status == null) {
+    evalaution_info.result.timeCost =
+    evalaution_info.result.memoryCost =
+    evalaution_info.result.score = null;
+  }
+
+  return evalaution_info;
 }
 
 /**
  * 根据id给出一项subtask_evaluation的若干信息
  * @date 2023/12/21 - 14:31:00
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} subtask_evaluation_id
  *
@@ -399,13 +423,19 @@ async function select_evaluation_by_id(evaluation_id) {
  * memoryCost：该部分评测的空间（单位：MB），没评完给null
  */
 function select_subtask_evaluation_by_id(subtask_evaluation_id) {
-  // TODO
+  let sql = 'SELECT subtask_evaluation_status AS status, ' +
+  'subtask_evaluation_score AS score, ' +
+  'subtask_evaluation_time AS timeCost, ' +
+  'subtask_evaluation_memory AS memoryCost ' +
+  'WHERE subtask_evaluation_id = ?;';
+  let sqlParams = [subtask_evaluation_id];
+  return select_one_decorator(sql, sqlParams, '子任务评测记录');
 }
 
 /**
  * 根据id给出一项data_evaluation的若干信息
  * @date 2023/12/21 - 14:31:00
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} data_evaluation_id
  *
@@ -417,26 +447,37 @@ function select_subtask_evaluation_by_id(subtask_evaluation_id) {
  * memoryCost：该部分评测的空间（单位：MB），没评完给null
  */
 function select_data_evaluation_by_id(data_evaluation_id) {
-  // TODO
+  let sql = 'SELECT data_id, ' +
+  'data_evaluation_status AS status, ' +
+  'data_evaluation_score AS score, ' +
+  'data_evaluation_time AS timeCost, ' +
+  'data_evaluation_memory AS memoryCost ' +
+  'WHERE data_evaluation_id = ?;';
+  let sqlParams = [data_evaluation_id];
+  return select_one_decorator(sql, sqlParams, '数据点评测记录');
 }
 
 /**
  * 根据evaluation_id获取对应评测记录的evaluation_received_id
  * @date 2023/12/21 - 14:24:30
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} evaluation_id
  *
  * 函数的result返回一个对象，received_id的键值表示对应的结果
  */
 function select_evaluation_received_id_by_id(evaluation_id) {
-  // TODO
+  let sql = 'SELECT evaluation_received_id AS received_id ' +
+  'FROM data_evaluations ' +
+  'WHERE evaluation_id = ?;'
+  let sqlParams = [evaluation_id];
+  return select_one_decorator(sql, sqlParams, '评测机方评测记录');
 }
 
 /**
  * 根据evaluation_id获取对应评测记录的所有data_evaluation组成的列表，按照样例顺序升序排序
  * @date 2023/12/21 - 14:59:12
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} evaluation_id
  *
@@ -447,14 +488,31 @@ function select_evaluation_received_id_by_id(evaluation_id) {
  * timeCost：该部分评测的用时（单位：毫秒），没评完给null
  * memoryCost：该部分评测的空间（单位：MB），没评完给null
  */
-function select_data_evaluation_by_evaluation_id(evaluation_id) {
-  // TODO
+async function select_data_evaluation_by_evaluation_id(evaluation_id) {
+  let sql = 'SELECT data_evaluation_id AS id, ' +
+  'data_evaluation_status AS status, ' +
+  'data_evaluation_score AS score, ' +
+  'data_evaluation_time AS timeCost, ' +
+  'data_evaluation_memory AS memoryCost ' +
+  'FROM data_evaluations ' +
+  'WHERE evaluation_id = ?;';
+  let sqlParams = [Number(evaluation_id)];
+  let selected = select_multiple_decorator(sql, sqlParams, '数据点评测记录');
+  if (!selected.success) {
+    return selected;
+  } else {
+    selected.result.forEach(obj => {
+      if (obj.status == null) {
+        obj.score = obj.timeCost = obj.memoryCost = null;
+      }
+    });
+  }
 }
 
 /**
  * 根据evaluation_id获取对应评测记录的所有subtask_evaluation组成的列表，按照子任务顺序升序排序
  * @date 2023/12/21 - 14:59:12
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} evaluation_id
  *
@@ -465,14 +523,29 @@ function select_data_evaluation_by_evaluation_id(evaluation_id) {
  * timeCost：该部分评测的用时（单位：毫秒），没评完给null
  * memoryCost：该部分评测的空间（单位：MB），没评完给null
  */
-function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
-  // TODO
+async function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
+  let sql = 'SELECT subtask_evaluation_id AS id, ' +
+  'subtask_evaluation_status AS status, ' +
+  'subtask_evaluation_score AS score, ' +
+  'subtask_evaluation_time AS timeCost, ' +
+  'subtask_evaluation_memory AS memoryCost ' +
+  'WHERE evaluation_id = ?;';
+  let sqlParams = [Number(evaluation_id)];
+  let selected = select_multiple_decorator(sql, sqlParams, '数据点评测记录');
+  if (selected.success) {
+    selected.result.forEach(obj => {
+      if (obj.status == null) {
+        obj.score = obj.timeCost = obj.memoryCost = null;
+      }
+    });
+  }
+  return selected;
 }
 
 /**
  * 根据subtask_evaluation_id获取对应评测记录的所有data_evaluation组成的列表，按照样例顺序升序排序
  * @date 2023/12/21 - 14:59:12
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} subtask_evaluation_id
  *
@@ -483,16 +556,31 @@ function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
  * timeCost：该部分评测的用时（单位：毫秒），没评完给null
  * memoryCost：该部分评测的空间（单位：MB），没评完给null
  */
-function select_data_evaluation_by_subtask_evaluation_id(
+async function select_data_evaluation_by_subtask_evaluation_id(
   subtask_evaluation_id
 ) {
-  // TODO
+  let sql = 'SELECT data_evaluation_id AS id, ' +
+  'data_evaluation_status AS status, ' +
+  'data_evaluation_score AS score, ' +
+  'data_evaluation_time AS timeCost, ' +
+  'data_evaluation_memory AS memoryCost ' +
+  'WHERE subtask_evaluation_id = ?;';
+  let sqlParams = [Number(subtask_evaluation_id)];
+  let selected = await select_multiple_decorator(sql, sqlParams, '数据点评测记录');
+  if (selected.success) {
+    selected.result.forEach(obj => {
+      if (obj.status == null) {
+        obj.score = obj.timeCost = obj.memoryCost = null;
+      }
+    });
+  }
+  return selected;
 }
 
 /**
  * 根据题目id，查找它的所有evaluation的信息，只需要一个属性
  * @date 2023/12/23 - 17:15:19
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} problem_id
  * @param {*} problem_is_official
@@ -501,29 +589,38 @@ function select_data_evaluation_by_subtask_evaluation_id(
  * id：评测id
  */
 function select_evaluations_by_problem_id(problem_id, problem_is_official) {
-  // TODO
+  let sql = 'SELECT evaluation_id AS id ' +
+  'FROM evaluations ' +
+  'WHERE problem_id = ? ' + 
+  'AND problemIis_official = ?;'
+  let sqlParams = [problem_id, problem_is_official ? 1 : 0];
+  return select_multiple_decorator(sql, sqlParams, '评测记录');
 }
 
 /**
  * 根据评测id，删除所有属于这个评测的data_evaluation
  * @date 2023/12/23 - 17:20:16
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} evaluation_id
  */
 function delete_data_evaluation_by_evaluation_id(evaluation_id) {
-  // TODO
+  let sql = 'DELECT FROM data_evaluations WHERE evaluation_id = ?;'
+  let sqlParams = [Number(evaluation_id)];
+  return delete_decorator(sql, sqlParams, '数据点评测记录');
 }
 
 /**
  * 根据评测id，删除所有属于这个评测的subtask_evaluation
  * @date 2023/12/23 - 17:20:16
- * @author Mr_Spade
+ * @author Mr_Spade, niehy21
  *
  * @param {*} evaluation_id
  */
 function delete_subtask_evaluation_by_evaluation_id(evaluation_id) {
-  // TODO
+  let sql = 'DELECT FROM subtask_evaluations WHERE evaluation_id = ?;'
+  let sqlParams = [Number(evaluation_id)];
+  return delete_decorator(sql, sqlParams, '子任务评测记录');
 }
 
 module.exports = {
