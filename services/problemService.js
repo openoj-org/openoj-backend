@@ -273,10 +273,10 @@ function validate_zip_extract(extractPath) {
       !questionFiles.includes('inputStatement.md') ||
       !questionFiles.includes('outputStatement.md') ||
       !questionFiles.includes('rangeAndHint.md')) {
-    return false;
+    return false; //TODO 返回错误信息 dict
   }
   if (!dataFiles.includes('config.txt')) {
-    return false;
+    return false; //TODO 返回错误信息 dict
   }
 
   let data_info = validate_data_zip_extract(extractPath + '/data');
@@ -290,7 +290,7 @@ function validate_zip_extract(extractPath) {
   (ret.isSPJUsed = data_info.isSPJUsed) ?
   (ret.SPJFilename = data_info.SPJFilename) :
   {};
-
+  //TODO return ret;
 }
 
 // 获取题目样例文件
@@ -355,7 +355,7 @@ function problem_list(req, res, next) {
     let {evaluation, cookie, order, increase, titleKeyword, sourceKeyword, tagKeyword, start, end} = req.query;
     
     let problems = await select_official_problems_by_param_order(order, increase, titleKeyword, sourceKeyword, start, end);
-    return problems;
+    return problems; //TODO add problems to res
   }, false);
 }
 
