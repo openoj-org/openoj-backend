@@ -317,20 +317,19 @@ function insert_user(name, passwordHash, mail, role, signature) {
   return insert_one_decorator(sql, sqlParams, "用户");
 }
 
-function update_user(id, param, value)
-{
-	let sql = 'UPDATE users SET ' + param + ' = ?';
-	let sqlParams = [value];
-	if (param == 'user_name') {
-		sql += ', user_name_change_time = ?';
-		sqlParams.push(new Date().getTime());
-	} else if (param == 'user_email') {
-		sql += ', user_email_change_time = ?';
-		sqlParams.push(new Date().getTime());
-	}
-	sql += ' WHERE user_id = ?;';
-	sqlParams.push(Number(id));
-	console.log(sql, sqlParams);
+function update_user(id, param, value) {
+  let sql = "UPDATE users SET " + param + " = ?";
+  let sqlParams = [value];
+  if (param == "user_name") {
+    sql += ", user_name_change_time = ?";
+    sqlParams.push(new Date().getTime());
+  } else if (param == "user_email") {
+    sql += ", user_email_change_time = ?";
+    sqlParams.push(new Date().getTime());
+  }
+  sql += " WHERE user_id = ?;";
+  sqlParams.push(Number(id));
+  // console.log(sql, sqlParams);
   return update_decorator(sql, sqlParams, param + " ");
 }
 

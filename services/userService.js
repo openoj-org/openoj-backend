@@ -983,14 +983,18 @@ function generate_user(req, res, next) {
                             return;
                           }
                         }
+                        console.log("ok");
+                        InsertUsers(usernamePrefix, passwordCode, 1, count)
+                          .then((norObj) => {
+                            res.json(norObj);
+                          })
+                          .catch((errObj) => {
+                            res.json(errObj);
+                          });
+                      } else {
+                        res.json(result);
+                        return;
                       }
-                      InsertUsers(usernamePrefix, passwordCode, 1, count)
-                        .then((norObj) => {
-                          res.json(norObj);
-                        })
-                        .catch((errObj) => {
-                          res.json(errObj);
-                        });
                     })
                     .catch((err) => {
                       res.json(err);
@@ -1000,6 +1004,7 @@ function generate_user(req, res, next) {
                     success: false,
                     message: "用户凭证无效",
                   });
+                  return;
                 }
               })
               .catch((err) => {
@@ -1007,6 +1012,7 @@ function generate_user(req, res, next) {
               });
           } else {
             res.json(usrid);
+            return;
           }
         });
       },
