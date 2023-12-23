@@ -297,7 +297,7 @@ function login(req, res, next) {
               .then((norObj) => {
                 if (norObj.success) {
                   if (norObj.userInfo.user_role == 4) {
-                    res.status(403).json({
+                    res.status(200).json({
                       success: false,
                       message: "封禁用户禁止登录",
                     });
@@ -351,7 +351,7 @@ function login(req, res, next) {
                   .then((norObj) => {
                     if (norObj.success) {
                       if (norObj.userInfo.user_role == 4) {
-                        res.status(403).json({
+                        res.status(200).json({
                           success: false,
                           message: "封禁用户禁止登录",
                         });
@@ -720,7 +720,7 @@ function change_username(req, res, next) {
             .then((normalObj) => {
               if (normalObj.success) {
                 if (normalObj.username === username) {
-                  res.status(403).json({
+                  res.status(200).json({
                     success: false,
                     message: "新用户名不能和旧用户名相同",
                   });
@@ -768,7 +768,7 @@ function change_password(req, res, next) {
               if (norObj.success) {
                 let usr = norObj.userInfo;
                 if (usr.user_password_hash === passwordCode) {
-                  res.status(403).json({
+                  res.status(200).json({
                     success: false,
                     message: "新密码不能和旧密码相同",
                   });
@@ -1017,64 +1017,58 @@ function generate_user(req, res, next) {
 
 // 设置可以注册的邮箱后缀, 已完成对接、测试
 function set_mail(req, res, next) {
-  let { haveList } = req.body;
-  if (!haveList) {
-    res.json({
-      success: false,
-      message: "当前不开放注册",
-    });
-  } else {
-    validateFunction(
-      req,
-      res,
-      next,
-      (req, res, next) => {
-        let { cookie, haveList, suffixList } = req.body;
-        return select_user_id_by_cookie(cookie).then(async (usrid) => {
-          if (usrid.success) {
-            let tmp = await authenticate_cookie(cookie, 0);
-            if (tmp.success == false) {
-              res.status(CODE_ERROR).json({
-                success: false,
-                message: "无设置权限",
-              });
-              return;
-            }
-            if (haveList && suffixList.length == 0) {
-              res.json({
-                success: false,
-                message: "不能将邮箱后缀设置为空",
-              });
-              return;
-            }
-            tmp = await update_global_settings("have_list", haveList);
-            if (tmp.success == false) {
-              res.json(tmp);
-              return;
-            }
-            if (haveList) {
-              delete_email_suffixes()
-                .then(() => {
-                  insert_email_suffixes(suffixList)
-                    .then((obj) => {
-                      res.json(obj);
-                    })
-                    .catch((err) => {
-                      res.json(err);
-                    });
-                })
-                .catch((err) => {
-                  res.json(err);
-                });
-            }
-          } else {
-            res.json(usrid);
+  validateFunction(
+    req,
+    res,
+    next,
+    (req, res, next) => {
+      let { cookie, haveList, suffixList } = req.body;
+      return select_user_id_by_cookie(cookie).then(async (usrid) => {
+        if (usrid.success) {
+          let tmp = await authenticate_cookie(cookie, 0);
+          if (tmp.success == false) {
+            res.status(CODE_ERROR).json({
+              success: false,
+              message: "无设置权限",
+            });
+            return;
           }
-        });
-      },
-      false
-    );
-  }
+          if (haveList && suffixList.length == 0) {
+            res.json({
+              success: false,
+              message: "不能将邮箱后缀设置为空",
+            });
+            return;
+          }
+          tmp = await update_global_settings("have_list", haveList);
+          if (tmp.success == false) {
+            res.json(tmp);
+            return;
+          }
+          if (haveList) {
+            delete_email_suffixes()
+              .then(() => {
+                insert_email_suffixes(suffixList)
+                  .then((obj) => {
+                    res.json(obj);
+                  })
+                  .catch((err) => {
+                    res.json(err);
+                  });
+              })
+              .catch((err) => {
+                res.json(err);
+              });
+          } else {
+            res.json({ success: true });
+          }
+        } else {
+          res.json(usrid);
+        }
+      });
+    },
+    false
+  );
 }
 
 // 移除管理员
@@ -1136,40 +1130,33 @@ function manage(req, res, next) {
     next,
     (req, res, next) => {
       let { cookie, id } = req.body;
-      return select_user_id_by_cookie(cookie).then((usrid) => {
-        if (usrid.success) {
-          if (usrid.id == 1) {
-            select_user_by_id(id)
-              .then((normalObj) => {
-                // console.log(normalObj);
-                if (normalObj.success) {
-                  if (normalObj.character == 0) {
-                    res.json({
-                      success: false,
-                      message: "root 用户不可设置",
-                    });
-                  } else {
-                    update_user(id, "user_role", 1)
-                      .then((norObj) => {
-                        res.json(norObj);
-                      })
-                      .catch((errorObj) => {
-                        res.json(errorObj);
-                      });
-                  }
+      return authenticate_cookie(cookie, 0).then((result) => {
+        if (result.success) {
+          select_user_by_id(id)
+            .then((normalObj) => {
+              // console.log(normalObj);
+              if (normalObj.success) {
+                if (normalObj.character == 0) {
+                  res.json({
+                    success: false,
+                    message: "root 用户不可设置",
+                  });
                 } else {
-                  res.json(normalObj);
+                  update_user(id, "user_role", 1)
+                    .then((norObj) => {
+                      res.json(norObj);
+                    })
+                    .catch((errorObj) => {
+                      res.json(errorObj);
+                    });
                 }
-              })
-              .catch((errorObj) => {
-                res.json(errorObj);
-              });
-          } else {
-            res.json({
-              success: false,
-              message: "无设置管理员权限",
+              } else {
+                res.json(normalObj);
+              }
+            })
+            .catch((errorObj) => {
+              res.json(errorObj);
             });
-          }
         } else {
           res.json(usrid);
         }
@@ -1318,7 +1305,7 @@ function unban(req, res, next) {
                           message: "该用户非封禁用户",
                         });
                       } else {
-                        update_user(id, "user_role", 4)
+                        update_user(id, "user_role", 3)
                           .then((norObj) => {
                             res.json(norObj);
                           })
