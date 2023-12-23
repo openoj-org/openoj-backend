@@ -32,7 +32,7 @@ function select_one_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(results => {
         let flag = (results && (results.length != 0));
-        flag ? {} : console.log(results.message);
+        flag ? {} : console.log(results ? results.message : '');
         return {
 			success: flag,
 			message: (flag ? `查询${name}成功` : `查询${name}失败`),
@@ -44,13 +44,13 @@ function select_one_decorator(sql, sqlParams, name) {
 function select_multiple_decorator(sql, sqlParams, name) {
     return error_decorator(modifySql.bind(null, sql, sqlParams))
     .then(results => {
-        let flag = (results && (results.length != 0));
+        let flag = (results != null);
         flag ? {} : console.log(results.message);
         return {
 			success: flag,
 			message: (flag ? `查询${name}成功` : `查询${name}失败`),
             result: (flag ? results : undefined),
-            count: (flag ? results : undefined)
+            count: (flag ? results.length : undefined)
 		};
     });
 }
