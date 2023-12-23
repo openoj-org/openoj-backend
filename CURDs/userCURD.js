@@ -315,21 +315,20 @@ function insert_user(name, passwordHash, mail, role, signature) {
   return insert_one_decorator(sql, sqlParams, "用户");
 }
 
-function update_user(id, param, value)
-{
-	let sql = 'UPDATE users SET ? = ?';
-	let sqlParams = [param, value];
-	if (param == 'user_name') {
-		sql += ', ? = ?';
-		sqlParams.push('user_name_change_time');
-		sqlParams.push(new Date().getTime());
-	} else if (param == 'user_email') {
-		sql += ', ? = ?';
-		sqlParams.push('user_email_change_time');
-		sqlParams.push(new Date().getTime());
-	}
-	sql += ' WHERE user_id = ?;';
-	sqlParams.push(id);
+function update_user(id, param, value) {
+  let sql = "UPDATE users SET ? = ?";
+  let sqlParams = [param, value];
+  if (param == "user_name") {
+    sql += ", ? = ?";
+    sqlParams.push("user_name_change_time");
+    sqlParams.push(new Date().getTime());
+  } else if (param == "user_email") {
+    sql += ", ? = ?";
+    sqlParams.push("user_email_change_time");
+    sqlParams.push(new Date().getTime());
+  }
+  sql += " WHERE user_id = ?;";
+  sqlParams.push(id);
 
   return update_decorator(sql, sqlParams, param + " ");
 }
