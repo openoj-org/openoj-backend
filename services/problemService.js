@@ -895,67 +895,157 @@ function problem_change_data(req, res, next) {
     req,
     res,
     next,
-    (req, res, next) => {
-      let form = new multiparty.Form({ uploadDir: "./static" });
-      return form.parse(req, async (err, fields, files) => {
-        if (err) {
-          res.json({
+    async (req, res, next) => {
+      // 从请求体中解析参数
+      let { cookie, id } = req.body;
+
+      // 先对数据进行删除
+      let tmp = await real_problem_delete_data(id);
+      if (tmp.success == false) return tmp;
+
+      // 检验 cookie 有效性
+      let cookie_verified = await authenticate_cookie(cookie, 1);
+      if (!cookie_verified.success) {
+        return cookie_verified;
+      }
+
+      // 将文件解压至 temp 下
+      let extract_info = extractToTemp(req.file);
+      if (!extract_info.success) {
+        return extract_info;
+      }
+
+      const extractDir = extract_info.dir;
+      const fatherDir = "./static/offcial_problem/" + id;
+      const staticDir = fatherDir + "/data";
+      try {
+        const info = validate_data_zip_extract(extractDir);
+        // 检查 .zip 文件的目录
+        if (!info.success) {
+          fs.rmdirSync(extractDir);
+          return {
             success: false,
-            message: err,
-          });
-        } else {
-          let { cookie, id } = fields;
-          let auth = authentication(cookie);
-          if (auth.success) {
-            let file = files.data[0];
-            let fileStoragePath = "./static/official/" + id;
-            fs.unlinkSync(fileStoragePath + "/data");
-            unzip(file.path, fileStoragePath);
-            fs.unlinkSync(file.path);
-            let { arry, row } = decodeConfig(
-              fileStoragePath + "/data/config.txt"
+            message: ".zip 文件目录有误",
+          };
+        }
+        // 若 static 中父文件夹不存在则创建
+        if (!fs.existsSync(fatherDir)) {
+          fs.mkdirSync(fatherDir);
+        }
+        // 若 static 中文件夹不存在则创建
+        if (!fs.existsSync(staticDir)) {
+          fs.mkdirSync(staticDir);
+        }
+        // 将正确的题目数据文件移至 static 文件夹下
+        fsExt.copySync(extractDir, staticDir, { overwrite: true });
+        // 将 temp 下的临时文件删除
+        fsExt.removeSync(extractDir);
+        // 更新spj信息
+        tmp = await update_official_problem(
+          id,
+          "problem_use_spj",
+          info.isSPJUsed
+        );
+        if (!tmp.success) return tmp;
+        if (info.isSPJUsed) {
+          // 如果使用spj，更新spj路径
+          tmp = await update_official_problem(
+            id,
+            "problem_spj_filename",
+            info.SPJFilename
+          );
+          if (!tmp.success) return tmp;
+        }
+        // 更新是否使用subtask
+        tmp = await update_official_problem(
+          id,
+          "problem_use_subtask",
+          info.isSubtaskUsed
+        );
+        if (!info.isSubtaskUsed) {
+          // 如果不使用子任务
+          const datas = info.subtasks;
+          for (let i = 1; i <= datas.length; i++) {
+            const data = datas[i - 1];
+            // 初始类型设为不是sample
+            let type = "non_sample";
+            if (data.type == 0) {
+              // 如果该项数据被设置为sample
+              const inputLength = fs
+                .readFileSync(extractDir + "/data/" + data.input)
+                .toString().length;
+              const outputLength = fs
+                .readFileSync(extractDir + "/data/" + data.output)
+                .toString().length;
+              // 过长则设为隐藏样例
+              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+              else type = "visible_sample";
+            }
+            tmp = await insert_data(
+              id,
+              0,
+              true,
+              type,
+              0,
+              i,
+              data.input,
+              data.output,
+              data.score
             );
-            delete_official_sample_by_question_id(id.toString())
-              .then((normalObj) => {
-                if (normalObj.success) {
-                  let norObj = InsertSamples(
-                    arry,
-                    1,
-                    row,
-                    id,
-                    fileStoragePath + "/data/"
-                  );
-                  if (norObj.success) {
-                    res.json({
-                      success: true,
-                      message: "评测数据更新成功",
-                    });
-                  } else {
-                    res.json({
-                      success: false,
-                      message: norObj.message,
-                    });
-                  }
-                } else {
-                  res.json({
-                    success: false,
-                    message: normalObj.message,
-                  });
-                }
-              })
-              .catch((errorObj) => {
-                res.json(errorObj);
-              });
-          } else {
-            res.json({
-              success: false,
-              message: auth.message,
-            });
+            if (!tmp.success) return tmp;
+          }
+        } else {
+          //使用子任务
+          const subtasks = info.subtasks;
+          for (let i = 1; i <= subtasks.length; i++) {
+            const subtask = subtasks[i - 1];
+            let tmp = insert_subtask(id, true, i, subtask.score);
+            if (!tmp.success) return tmp;
+            const subtaskId = tmp.id;
+            for (let j = 1; j <= subtask.cases; j++) {
+              const data = subtask.cases[j - 1];
+              // 初始类型设为不是sample
+              let type = "non_sample";
+              if (data.type == 0) {
+                // 如果该项数据被设置为sample
+                const inputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.input)
+                  .toString().length;
+                const outputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.output)
+                  .toString().length;
+                // 过长则设为隐藏样例
+                if (inputLength > 50 || outputLength > 50)
+                  type = "hidden_sample";
+                else type = "visible_sample";
+              }
+              tmp = await insert_data(
+                id,
+                subtaskId,
+                true,
+                type,
+                0,
+                j,
+                data.input,
+                data.output,
+                0
+              );
+              if (!tmp.success) return tmp;
+            }
           }
         }
-      });
+      } catch (e) {
+        return {
+          success: false,
+          message: "修改题目数据失败",
+        };
+      }
+      return {
+        success: true,
+        message: "修改题目数据成功",
+      };
     },
-    false
+    true
   );
 }
 
@@ -965,7 +1055,7 @@ function problem_change_meta(req, res, next) {
     req,
     res,
     next,
-    (req, res, next) => {
+    async (req, res, next) => {
       let {
         cookie,
         id,
@@ -981,162 +1071,73 @@ function problem_change_meta(req, res, next) {
         rangeAndHint,
         source,
       } = req.body;
-      let auth = authentication(cookie);
+      let auth = await authenticate_cookie(cookie, 1);
       if (auth.success) {
-        update_official_problem(
-          id.toString(),
-          title,
-          titleEn,
-          type,
-          timeLimit,
-          memoryLimit,
-          background,
-          statement,
-          inputStatement,
-          outputStatement,
-          rangeAndHint,
-          source
-        )
-          .then((normalObj) => {
-            if (normalObj.success) {
-              res.json({
-                success: true,
-                message: "题目修改成功",
-              });
-            } else {
-              res.json({
-                success: false,
-                message: normalObj.message,
-              });
-            }
-          })
-          .catch((errorObj) => {
-            res.json(errorObj);
-          });
+        let tmp = await update_official_problem(id, "problem_name", title);
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_english_name",
+          titleEn
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(id, "problem_type", type);
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_time_limit",
+          timeLimit
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_memory_limit",
+          memoryLimit
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_background",
+          background
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_description",
+          statement
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_input_format",
+          inputStatement
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_output_format",
+          outputStatement
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(
+          id,
+          "problem_data_range_and_hint",
+          rangeAndHint
+        );
+        if (tmp.success == false) return tmp;
+        tmp = await update_official_problem(id, "problem_source", source);
+        if (tmp.success == false) return tmp;
+        return { success: true };
       } else {
-        res.json({
+        return {
           success: false,
           message: auth.message,
-        });
+        };
       }
     },
     false
   );
 }
-
-// // 用文件创建题目
-// function problem_create_by_file(req, res, next) {
-//   validateFunction(
-//     req,
-//     res,
-//     next,
-//     (req, res, next) => {
-//       let form = new multiparty.Form({ uploadDir: "./static" });
-//       return form.parse(req, async (err, fields, files) => {
-//         if (err) {
-//           res.json({
-//             success: false,
-//             message: err,
-//           });
-//         } else {
-//           let { cookie, id } = fields;
-//           let auth = authentication(cookie);
-//           if (auth.success) {
-//             let file = files.data[0];
-//             let fileStoragePath = "./static/official/" + id;
-//             unzip(file.path, fileStoragePath);
-//             fs.unlinkSync(file.path);
-//             let summary = ReadFile(fileStoragePath + "/question/summary.txt");
-//             let background = ReadFile(
-//               fileStoragePath + "/question/background.md"
-//             );
-//             let description = ReadFile(
-//               fileStoragePath + "/question/description.md"
-//             );
-//             let inputStatement = ReadFile(
-//               fileStoragePath + "/question/inputStatement.md"
-//             );
-//             let outputStatement = ReadFile(
-//               fileStoragePath + "/question/outputStatement.md"
-//             );
-//             let rangeAndHint = ReadFile(
-//               fileStoragePath + "/question/rangeAndHint.md"
-//             );
-//             if (
-//               summary.success &&
-//               background.success &&
-//               description.success &&
-//               inputStatement.success &&
-//               outputStatement.success &&
-//               rangeAndHint.success
-//             ) {
-//               fs.unlinkSync(fileStoragePath + "/question");
-//               summary = summary.message.split(/\r?\n/);
-//               insert_official_problem(
-//                 id.toString(),
-//                 summary[0],
-//                 summary[1],
-//                 summary[2],
-//                 summary[3],
-//                 summary[4],
-//                 background.message,
-//                 description.message,
-//                 inputStatement.message,
-//                 outputStatement.message,
-//                 rangeAndHint.message,
-//                 summary[5]
-//               )
-//                 .then((normalObj) => {
-//                   if (normalObj.success) {
-//                     let { arry, row } = decodeConfig(
-//                       fileStoragePath + "/data/config.txt"
-//                     );
-//                     let norObj = InsertSamples(
-//                       arry,
-//                       1,
-//                       row,
-//                       id,
-//                       fileStoragePath + "/data/"
-//                     );
-//                     if (norObj.success) {
-//                       res.json({
-//                         success: true,
-//                         message: "题目创建成功",
-//                       });
-//                     } else {
-//                       res.json({
-//                         success: false,
-//                         message: norObj.message,
-//                       });
-//                     }
-//                   } else {
-//                     res.json({
-//                       success: false,
-//                       message: normalObj.message,
-//                     });
-//                   }
-//                 })
-//                 .catch((errorObj) => {
-//                   res.json(errorObj);
-//                 });
-//             } else {
-//               res.json({
-//                 success: false,
-//                 message: "文件错误",
-//               });
-//             }
-//           } else {
-//             res.json({
-//               success: false,
-//               message: auth.message,
-//             });
-//           }
-//         }
-//       });
-//     },
-//     false
-//   );
-// }
 
 // 创建题目
 function problem_create(req, res, next) {
@@ -1145,7 +1146,7 @@ function problem_create(req, res, next) {
     res,
     next,
     async (req, res, next) => {
-      // 从请求体获取数据
+      // 解析参数
       let {
         cookie,
         id,
@@ -1161,152 +1162,171 @@ function problem_create(req, res, next) {
         rangeAndHint,
         source,
       } = req.body;
-      background = background ? background : "";
 
-      // 验证管理员身份
+      // 检验 cookie 有效性
       let cookie_verified = await authenticate_cookie(cookie, 1);
       if (!cookie_verified.success) {
         return cookie_verified;
       }
 
-      // 将 data 压缩文件解压至 temp 目录下
+      let tmp = await insert_official_problem(
+        id,
+        title,
+        titleEn,
+        type,
+        timeLimit,
+        memoryLimit,
+        background,
+        statement,
+        inputStatement,
+        outputStatement,
+        rangeAndHint,
+        source
+      );
+      if (!tmp.success) return tmp;
+
+      // 先对数据进行删除
+      tmp = await real_problem_delete_data(id);
+      if (tmp.success == false) return tmp;
+
+      // 将文件解压至 temp 下
       let extract_info = extractToTemp(req.file);
       if (!extract_info.success) {
         return extract_info;
       }
 
-      // 检验 data 压缩文件目录格式是否符合要求
-      let data_info = validate_data_zip_extract(extract_info.dir);
-      if (!data_info.success) {
-        // 若验证失败, 将临时文件删除
-        fs.unlinkSync(extract_info.dir);
-        return data_info;
-      }
-
-      // 根据 data 解析的结果更新数据库
-      if (data_info.isSubtaskUsed) {
-        for (let i = 1; i <= data_info.subtasks.length; i++) {
-          let subtask_info = await insert_subtask(
+      const extractDir = extract_info.dir;
+      const fatherDir = "./static/offcial_problem/" + id;
+      const staticDir = fatherDir + "/data";
+      try {
+        const info = validate_data_zip_extract(extractDir);
+        // 检查 .zip 文件的目录
+        if (!info.success) {
+          fs.rmdirSync(extractDir);
+          return {
+            success: false,
+            message: ".zip 文件目录有误",
+          };
+        }
+        // 若 static 中父文件夹不存在则创建
+        if (!fs.existsSync(fatherDir)) {
+          fs.mkdirSync(fatherDir);
+        }
+        // 若 static 中文件夹不存在则创建
+        if (!fs.existsSync(staticDir)) {
+          fs.mkdirSync(staticDir);
+        }
+        // 将正确的题目数据文件移至 static 文件夹下
+        fsExt.copySync(extractDir, staticDir, { overwrite: true });
+        // 将 temp 下的临时文件删除
+        fsExt.removeSync(extractDir);
+        // 更新spj信息
+        tmp = await update_official_problem(
+          id,
+          "problem_use_spj",
+          info.isSPJUsed
+        );
+        if (!tmp.success) return tmp;
+        if (info.isSPJUsed) {
+          // 如果使用spj，更新spj路径
+          tmp = await update_official_problem(
             id,
-            1,
-            i,
-            data_info.subtasks[i - 1].score
+            "problem_spj_filename",
+            info.SPJFilename
           );
-          if (!subtask_info.success) {
-            return subtask_info;
-          }
-
-          for (let j = 1; j <= data_info.subtasks.cases.length; j++) {
-            let case_info = await insert_official_data(
+          if (!tmp.success) return tmp;
+        }
+        // 更新是否使用subtask
+        tmp = await update_official_problem(
+          id,
+          "problem_use_subtask",
+          info.isSubtaskUsed
+        );
+        if (!info.isSubtaskUsed) {
+          // 如果不使用子任务
+          const datas = info.subtasks;
+          for (let i = 1; i <= datas.length; i++) {
+            const data = datas[i - 1];
+            // 初始类型设为不是sample
+            let type = "non_sample";
+            if (data.type == 0) {
+              // 如果该项数据被设置为sample
+              const inputLength = fs
+                .readFileSync(extractDir + "/data/" + data.input)
+                .toString().length;
+              const outputLength = fs
+                .readFileSync(extractDir + "/data/" + data.output)
+                .toString().length;
+              // 过长则设为隐藏样例
+              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+              else type = "visible_sample";
+            }
+            tmp = await insert_data(
               id,
-              subtask_info.cases[j - 1].type ? "visible_sample" : "non_sample",
+              0,
+              true,
+              type,
+              0,
               i,
-              j,
-              data_info.subtasks.cases.input,
-              data_info.subtasks.cases.output
+              data.input,
+              data.output,
+              data.score
             );
-            if (!case_info.success) {
-              return case_info;
+            if (!tmp.success) return tmp;
+          }
+        } else {
+          //使用子任务
+          const subtasks = info.subtasks;
+          for (let i = 1; i <= subtasks.length; i++) {
+            const subtask = subtasks[i - 1];
+            let tmp = insert_subtask(id, true, i, subtask.score);
+            if (!tmp.success) return tmp;
+            const subtaskId = tmp.id;
+            for (let j = 1; j <= subtask.cases; j++) {
+              const data = subtask.cases[j - 1];
+              // 初始类型设为不是sample
+              let type = "non_sample";
+              if (data.type == 0) {
+                // 如果该项数据被设置为sample
+                const inputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.input)
+                  .toString().length;
+                const outputLength = fs
+                  .readFileSync(extractDir + "/data/" + data.output)
+                  .toString().length;
+                // 过长则设为隐藏样例
+                if (inputLength > 50 || outputLength > 50)
+                  type = "hidden_sample";
+                else type = "visible_sample";
+              }
+              tmp = await insert_data(
+                id,
+                subtaskId,
+                true,
+                type,
+                0,
+                j,
+                data.input,
+                data.output,
+                0
+              );
+              if (!tmp.success) return tmp;
             }
           }
-          // for (let j = 1; j <= data_info.subtasks.)
         }
-      } else {
-      }
-
-      // 问题配置的路径
-      let problemDir = "./static/official_problem/" + id + "/problem";
-      try {
-        fs.mkdirSync(problemDir, { recursive: true });
       } catch (e) {
         return {
           success: false,
-          message: "创建配置目录失败",
+          message: "修改题目数据失败",
         };
       }
-
-      // 写入各配置文件
-      try {
-        fs.writeFileSync(configDir + "/description.md", statement, "utf8");
-        fs.writeFileSync(
-          configDir + "/inputStatement.md",
-          inputStatement,
-          "utf8"
-        );
-        fs.writeFileSync(
-          configDir + "/outputStatement.md",
-          outputStatement,
-          "utf8"
-        );
-        fs.writeFileSync(configDir + "/rangeAndHint.md", rangeAndHint, "utf8");
-        fs.writeFileSync(
-          configDir + "/summary.txt",
-          title +
-            "\n" +
-            titleEn +
-            "\n" +
-            type +
-            "\n" +
-            timeLimit +
-            "\n" +
-            memoryLimit +
-            (source == "" ? "" : "\n" + source),
-          "utf8"
-        );
-      } catch (e) {
-        return {
-          success: false,
-          message: "写入配置文件失败",
-        };
-      }
+      return {
+        success: true,
+        message: "修改题目数据成功",
+      };
     },
     true
   );
-}
-
-function InsertSamples(arry, i, n, problemid, filepath) {
-  if (i == n) {
-    return {
-      success: true,
-      message: "样例更新成功",
-    };
-  } else {
-    let samplesid = createSessionId();
-    let haveinput = FileExist(arry[i][2], filepath);
-    let haveoutput = FileExist(arry[i][3], filepath);
-    if (haveinput && haveoutput) {
-      return insert_official_sample(
-        samplesid,
-        problemid,
-        parseInt(arry[i][5]),
-        arry[i][0],
-        arry[i][1],
-        arry[i][2],
-        arry[i][3]
-      )
-        .then((result) => {
-          if (result.success) {
-            return InsertSamples(arry, i + 1, n, problemid);
-          } else {
-            return {
-              message: result.message,
-              success: false,
-            };
-          }
-        })
-        .catch((errorObj) => {
-          return {
-            message: errorObj.message,
-            success: false,
-          };
-        });
-    } else {
-      return {
-        message: "数据缺失",
-        success: false,
-      };
-    }
-  }
 }
 
 function FileExist(filename, filepath) {
