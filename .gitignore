@@ -1,5 +1,5 @@
 node_modules/
 package-lock.json
-static/official_problems/
-static/workshop_problems/
+static/official_problem/
+static/workshop_problem/
 yarn.lock
