@@ -24,6 +24,8 @@ const {
   insert_email_suffixes,
   update_global_settings,
   select_global_settings,
+  authenticate_cookie,
+  delete_email_suffixes,
 } = require("../CURDs/userCURD");
 const {
   update_mail_code_success_session_id,
@@ -1027,23 +1029,43 @@ function set_mail(req, res, next) {
       res,
       next,
       (req, res, next) => {
-        let { cookie, suffixList } = req.body;
-        return select_user_id_by_cookie(cookie).then((usrid) => {
+        let { cookie, haveList, suffixList } = req.body;
+        return select_user_id_by_cookie(cookie).then(async (usrid) => {
           if (usrid.success) {
-            let id = usrid.id;
-            if (id == 1) {
-              insert_email_suffixes(suffixList)
-                .then((obj) => {
-                  res.json(obj);
-                })
-                .catch((err) => {
-                  res.json(err);
-                });
-            } else {
+            let tmp = await authenticate_cookie(cookie, 0);
+            if (tmp.success == false) {
               res.status(CODE_ERROR).json({
                 success: false,
                 message: "无设置权限",
               });
+              return;
+            }
+            if (haveList && suffixList.length == 0) {
+              res.json({
+                success: false,
+                message: "不能将邮箱后缀设置为空",
+              });
+              return;
+            }
+            tmp = await update_global_settings("have_list", haveList);
+            if (tmp.success == false) {
+              res.json(tmp);
+              return;
+            }
+            if (haveList) {
+              delete_email_suffixes()
+                .then(() => {
+                  insert_email_suffixes(suffixList)
+                    .then((obj) => {
+                      res.json(obj);
+                    })
+                    .catch((err) => {
+                      res.json(err);
+                    });
+                })
+                .catch((err) => {
+                  res.json(err);
+                });
             }
           } else {
             res.json(usrid);
