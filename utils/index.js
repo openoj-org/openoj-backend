@@ -1,4 +1,4 @@
-const mysql = require("mysql");
+const mysql = require("mysql2");
 const config = require("../db/dbConfig");
 
 function connect_default() {
@@ -7,7 +7,7 @@ function connect_default() {
     host,
     user,
     password,
-    database
+    database,
   });
 }
 
@@ -17,7 +17,7 @@ function connect(database) {
     host,
     user,
     password,
-    database
+    database,
   });
 }
 
@@ -41,7 +41,7 @@ function querySql_default(sql) {
 }
 
 function querySql(sql) {
-  const conn = connect('oj_schema');
+  const conn = connect("oj_schema");
   return new Promise((resolve, reject) => {
     try {
       conn.query(sql, (err, res) => {
@@ -76,7 +76,7 @@ function queryOne(sql) {
   });
 }
 function modifySql(sql, sqlParams) {
-  const conn = connect('oj_schema');
+  const conn = connect("oj_schema");
   // conn.query("USE oj_schema;");
   return new Promise((resolve, reject) => {
     try {
