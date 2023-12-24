@@ -481,7 +481,12 @@ async function workshop_delete(req, res, next) {
   }
 
   // 调用真正的删除
-  res.json(await real_problem_delete(id, TYPE));
+  let tmp = await real_problem_delete(id, TYPE);
+  if (!tmp.success) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await real_problem_insert_file(id, TYPE, req.file));
   return;
 }
 
@@ -549,7 +554,12 @@ async function workshop_change_data(req, res, next) {
     res.json(tmp);
     return;
   }
-  res.json(await real_problem_insert_data_file(id, TYPE, req.file));
+  tmp = await real_problem_insert_data_file(id, TYPE, req.file);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await update_workshop_problem(id, "problem_submit_user_id", userId));
   return;
 }
 
@@ -578,7 +588,12 @@ async function workshop_change_meta(req, res, next) {
     res.json({ success: false, message: "你不是本题的作者" });
     return;
   }
-  res.json(await real_problem_update_problem(id, TYPE, req.body));
+  tmp = await real_problem_update_problem(id, TYPE, req.body);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await update_workshop_problem(id, "problem_submit_user_id", userId));
   return;
 }
 
