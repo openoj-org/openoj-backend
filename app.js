@@ -71,7 +71,9 @@ app.listen(8088, async () => {
     try {
       // 读取 SQL 文件的内容
       const sqlFilePath = "./oj_triggers.sql";
-      const sqlQueries = fs.readFileSync(sqlFilePath, "utf-8").split("*");
+      const sqlQueries = fs
+        .readFileSync(sqlFilePath, "utf-8")
+        .split("-- separator");
 
       for (const query of sqlQueries) {
         if (query.trim() !== "") {
