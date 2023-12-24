@@ -893,6 +893,7 @@ async function real_problem_update_problem(id, problemType, info) {
 // 实际用于插入题目数据的函数，需要题目的元信息存在
 async function real_problem_insert_data(id, problemType, info, path) {
   try {
+    const MAX_LENGTH = 100;
     // 更新spj信息
     let tmp =
       problemType == 0
@@ -945,7 +946,8 @@ async function real_problem_insert_data(id, problemType, info, path) {
             .readFileSync(path + "/" + data.output)
             .toString().length;
           // 过长则设为隐藏样例
-          if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+          if (inputLength > MAX_LENGTH || outputLength > MAX_LENGTH)
+            type = "hidden_sample";
           else type = "visible_sample";
         }
         tmp = await insert_data(
@@ -982,7 +984,8 @@ async function real_problem_insert_data(id, problemType, info, path) {
               .readFileSync(path + "/" + data.output)
               .toString().length;
             // 过长则设为隐藏样例
-            if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+            if (inputLength > MAX_LENGTH || outputLength > MAX_LENGTH)
+              type = "hidden_sample";
             else type = "visible_sample";
           }
           tmp = await insert_data(
