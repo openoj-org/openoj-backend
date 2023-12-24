@@ -290,7 +290,6 @@ CREATE TABLE `workshop_problems`  (
   `problem_grade_sum` int NULL DEFAULT 0 COMMENT '问题评分总和',
   `problem_grade_number` int NULL DEFAULT 0 COMMENT '问题评分人数',
   `problem_recommendation_number` int NULL DEFAULT 0 COMMENT '问题推荐人数',
-  `problem_recommendation_number` int NULL DEFAULT 0 COMMENT '问题推荐人数',
   `problem_time_limit` int UNSIGNED NOT NULL DEFAULT 1000 COMMENT '问题时间限制',
   `problem_memory_limit` int UNSIGNED NOT NULL DEFAULT 256 COMMENT '问题空间限制',
   `problem_description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题描述的 Markdown 文本',
