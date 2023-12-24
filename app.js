@@ -67,6 +67,25 @@ app.listen(8088, async () => {
 
     console.log("创建数据表成功");
 
+    // 根据 oj_triggers.sql 文件, 创建触发器
+    try {
+      // 读取 SQL 文件的内容
+      const sqlFilePath = "./oj_triggers.sql";
+      const sqlQueries = fs.readFileSync(sqlFilePath, "utf-8").split("*");
+
+      for (const query of sqlQueries) {
+        if (query.trim() !== "") {
+          // 执行单个查询语句
+          await querySql(query);
+        }
+      }
+    } catch (err) {
+      console.log("创建触发器失败：", err);
+      return;
+    }
+
+    console.log("创建触发器成功");
+
     // 初始化全局设置
     try {
       let settings = await querySql(
