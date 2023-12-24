@@ -58,6 +58,7 @@ function select_sample_by_subtask_id(subtask_id) {
                FROM data WHERE subtask_id = ? \
                AND data_attribute != "non_sample";';
   let sqlParams = [subtask_id];
+  console.log(sql, sqlParams);
   return select_multiple_decorator(sql, sqlParams, "样例");
 }
 

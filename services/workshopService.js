@@ -420,16 +420,16 @@ async function real_problem_import(sourceId, targetId) {
     const subtasks = tmp.result;
     for (let i = 1; i <= subtasks.length; i++) {
       const subtask = subtasks[i - 1];
-      let tmp = insert_subtask(targetId, true, i, subtask.score);
+      let tmp = await insert_subtask(targetId, true, i, subtask.score);
       if (!tmp.success) return tmp;
       const subtaskId = tmp.id;
-      tmp = await select_sample_by_subtask_id(subtaskId);
+      tmp = await select_sample_by_subtask_id(subtask.id);
       if (!tmp.success) return tmp;
       let datas = tmp.result;
-      tmp = await select_data_by_subtask_id(subtaskId);
+      tmp = await select_data_by_subtask_id(subtask.id);
       if (!tmp.success) return tmp;
       datas = datas.concat(tmp.result);
-      for (let j = 1; j <= datas; j++) {
+      for (let j = 1; j <= datas.length; j++) {
         const data = datas[j - 1];
         tmp = await insert_data(
           targetId,
@@ -482,11 +482,7 @@ async function workshop_delete(req, res, next) {
 
   // 调用真正的删除
   let tmp = await real_problem_delete(id, TYPE);
-  if (!tmp.success) {
-    res.json(tmp);
-    return;
-  }
-  res.json(await real_problem_insert_file(id, TYPE, req.file));
+  res.json(tmp);
   return;
 }
 
@@ -520,7 +516,12 @@ async function workshop_change_by_file(req, res, next) {
     res.json(tmp);
     return;
   }
-  res.json(await real_problem_insert_file(id, TYPE, req.file));
+  tmp = await real_problem_insert_file(id, TYPE, req.file);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await update_workshop_problem(id, "problem_submit_user_id", userId));
   return;
 }
 

@@ -13,7 +13,7 @@ function insert_subtask(problem_id, problem_is_official, number, score) {
 async function select_subtask_by_problem_id(problem_id, problem_is_official) {
   try {
     let sql =
-      "SELECT (subtask_id AS id, subtask_score AS score) FROM subtasks  WHERE problem_id = ? AND problem_is_official = ? ORDER BY subtask_number ASC;";
+      "SELECT subtask_id AS id, subtask_score AS score FROM subtasks  WHERE problem_id = ? AND problem_is_official = ? ORDER BY subtask_number ASC;";
     let sqlParams = [problem_id, problem_is_official ? 1 : 0];
     const result = await modifySql(sql, sqlParams);
     return { success: true, result: result };
