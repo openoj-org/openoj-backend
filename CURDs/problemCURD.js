@@ -34,6 +34,28 @@ function select_official_tags_by_id(id) {
     });
 }
 
+function select_workshop_tags_by_id(id) {
+  let sql =
+    "SELECT * FROM tags WHERE problem_id = '" +
+    id +
+    "' AND problem_is_official = 0;";
+  return querySql(sql)
+    .then((result) => {
+      let flag = result != null && result != undefined;
+      return {
+        success: flag,
+        message: flag ? "标签查询成功" : "标签不存在",
+        tags: flag ? result.map((tag) => tag.tag_name) : undefined,
+      };
+    })
+    .catch((err) => {
+      return {
+        success: false,
+        message: err.message,
+      };
+    });
+}
+
 function select_evaluation_configs_by_id(id, problem_is_official) {
   // SQL 查询语句和参数列表
   let sql =
@@ -125,6 +147,7 @@ function select_workshop_problem_by_id(id) {
     "SELECT problem_name AS title, \
 		problem_english_name AS titleEn, \
 		problem_source AS source, \
+    problem_submit_user_id AS userId, \
 		problem_submit_number AS submitNum, \
 		problem_pass_number AS passNum, \
 		problem_grade_sum AS gradeSum, \
@@ -226,6 +249,89 @@ async function select_official_problems_by_param_order(
               prob.problem_grade_number == 0
                 ? 0
                 : prob.problem_grade_sum / prob.problem_grade_number,
+          })),
+        };
+      }
+    })
+    .catch((e) => {
+      return {
+        success: false,
+        message: e.message,
+      };
+    });
+}
+
+async function select_workshop_problems_by_param_order(
+  order,
+  increase,
+  titleKeyword,
+  sourceKeyword,
+  authorId,
+  start,
+  end
+) {
+  let real_order = "problem_id";
+  switch (order) {
+    case "id":
+      real_order = "problem_id";
+    case "title":
+      real_order = "problem_name";
+    case "grade":
+      real_order = "(problem_grade_sum / (problem_grade_number + 1))";
+    case "recommendation":
+      real_order = "problem_recommendation_number";
+  }
+  let sql = 'SELECT * FROM workshop_problems WHERE problem_name LIKE "';
+  sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+  sql += "%" + sourceKeyword + '%"';
+  if (authorId != null && authorId != undefined) {
+    sql += ` AND problem_submit_user_id = ${authorId}`;
+  }
+  sql += " ORDER BY " + real_order;
+  sql += increase ? " ASC " : " DESC ";
+  if (start != null && end != null) {
+    sql += "LIMIT " + start + ", " + end;
+  }
+  return querySql(sql)
+    .then(async (probs) => {
+      if (!probs) {
+        return {
+          success: false,
+          message: "指定范围内题目不存在",
+          count: 0,
+          result: null,
+        };
+      } else {
+        let sql =
+          'SELECT COUNT(*) FROM workshop_problems WHERE problem_name LIKE "';
+        sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+        sql += "%" + sourceKeyword + '%"';
+        if (authorId != null && authorId != undefined) {
+          sql += ` AND problem_submit_user_id = ${authorId}`;
+        }
+        sql += " ORDER BY " + real_order;
+        sql += increase ? " ASC " : " DESC ";
+        let tmp = await querySql(sql);
+        const count = tmp[0]["COUNT(*)"];
+        return {
+          success: true,
+          message: "题目查询成功",
+          count: count,
+          result: probs.map((prob) => ({
+            id: prob.problem_id,
+            title: prob.problem_name,
+            source: prob.problem_source,
+            submit: prob.problem_submit_number,
+            pass:
+              prob.problem_submit_number == 0
+                ? 0
+                : prob.problem_pass_number / prob.problem_submit_number,
+            grade:
+              prob.problem_grade_number == 0
+                ? 0
+                : prob.problem_grade_sum / prob.problem_grade_number,
+            userId: prob.problem_submit_user_id,
+            recommendation: prob.problem_recommendation_number,
           })),
         };
       }
@@ -466,4 +572,7 @@ module.exports = {
   // TODO
   // 参数与返回同上
   // select_workshop_problem_title_by_id,
+  select_workshop_problems_by_param_order,
+
+  select_workshop_tags_by_id,
 };

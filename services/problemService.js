@@ -16,6 +16,7 @@ const {
   update_workshop_problem,
   insert_workshop_problem,
   select_evaluation_configs_by_id,
+  select_workshop_problem_by_id,
 } = require("../CURDs/problemCURD");
 const {
   insert_subtask,
@@ -43,6 +44,7 @@ const {
   insert_official_data,
   insert_data,
   delete_workshop_data_by_problem_id,
+  select_workshop_sample_by_problem_id,
 } = require("../CURDs/dataCURD");
 const fs = require("fs");
 const fsExt = require("fs-extra");
@@ -406,7 +408,10 @@ function validate_zip_extract(extractPath) {
 async function problem_samples(req, res, next) {
   let { id } = req.query;
   // 获取除 tag, score 和 sample 外的题目信息
-  let problem_info = await select_official_problem_by_id(id);
+  let problem_info =
+    TYPE == 0
+      ? await select_official_problem_by_id(id)
+      : await select_workshop_problem_by_id(id);
   if (!problem_info.success) {
     res.json(problem_info);
     return;
@@ -418,7 +423,10 @@ async function problem_samples(req, res, next) {
   let zip = new admZip();
 
   // 查找样例失败, 返回空 .zip
-  let samples = await select_official_sample_by_problem_id(id);
+  let samples =
+    TYPE == 0
+      ? await select_official_sample_by_problem_id(id)
+      : await select_workshop_sample_by_problem_id(id);
   if (samples.success) {
     // 将每个样例加入压缩包
     try {
@@ -732,26 +740,19 @@ async function real_problem_delete(id, type) {
 }
 
 // 删除题目
-function problem_delete(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      // 从请求体中解析参数
-      let { cookie, id } = req.body;
+async function problem_delete(req, res, next) {
+  let { cookie, id } = req.body;
 
-      // 检验 cookie 有效性
-      let cookie_verified = await authenticate_cookie(cookie, 0);
-      if (!cookie_verified.success) {
-        return cookie_verified;
-      }
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 0);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
 
-      // 调用真正的删除
-      return await real_problem_delete(id, TYPE);
-    },
-    true
-  );
+  // 调用真正的删除
+  res.json(await real_problem_delete(id, TYPE));
+  return;
 }
 
 // 实际用于插入题目元数据的函数
@@ -965,10 +966,10 @@ async function real_problem_insert_data(id, problemType, info, path) {
       const subtasks = info.subtasks;
       for (let i = 1; i <= subtasks.length; i++) {
         const subtask = subtasks[i - 1];
-        let tmp = insert_subtask(id, problemType == 0, i, subtask.score);
+        let tmp = await insert_subtask(id, problemType == 0, i, subtask.score);
         if (!tmp.success) return tmp;
         const subtaskId = tmp.id;
-        for (let j = 1; j <= subtask.cases; j++) {
+        for (let j = 1; j <= subtask.cases.length; j++) {
           const data = subtask.cases[j - 1];
           // 初始类型设为不是sample
           let type = "non_sample";
@@ -989,7 +990,7 @@ async function real_problem_insert_data(id, problemType, info, path) {
             subtaskId,
             problemType == 0,
             type,
-            0,
+            i,
             j,
             path + "/" + data.input,
             path + "/" + data.output,
@@ -1251,4 +1252,14 @@ module.exports = {
   problem_change_meta,
   problem_create,
   problem_create_by_file,
+  real_extract_data_file,
+  real_extract_file,
+  real_problem_delete,
+  real_problem_delete_data,
+  real_problem_insert,
+  real_problem_insert_data,
+  real_problem_insert_data_file,
+  real_problem_insert_file,
+  real_problem_insert_problem,
+  real_problem_update_problem,
 };

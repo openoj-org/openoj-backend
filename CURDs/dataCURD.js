@@ -8,6 +8,7 @@ const {
   insert_one_decorator,
   delete_decorator,
   select_multiple_decorator,
+  select_one_decorator,
 } = require("./decorator");
 
 function select_sample_by_problem_id(problem_id, problem_is_official) {
@@ -15,7 +16,8 @@ function select_sample_by_problem_id(problem_id, problem_is_official) {
     'SELECT data_id AS id, \
                data_attribute AS attribute, \
                data_input_filename AS input_filename, \
-               data_output_filename AS output_filename \
+               data_output_filename AS output_filename, \
+               data_score AS score \
                FROM data WHERE problem_id = ? \
                AND problem_is_official = ? \
                AND data_attribute != "non_sample";';
@@ -45,14 +47,46 @@ function select_data_by_problem_id(problem_id, problem_is_official) {
   return select_multiple_decorator(sql, sqlParams, "样例");
 }
 
+// 返回数据格式和select_sample_by_problem_id一样，但是改成查找属于特定子任务的样例
+function select_sample_by_subtask_id(subtask_id) {
+  let sql =
+    'SELECT data_id AS id, \
+               data_attribute AS attribute, \
+               data_input_filename AS input_filename, \
+               data_output_filename AS output_filename, \
+               data_score AS score \
+               FROM data WHERE subtask_id = ? \
+               AND data_attribute != "non_sample";';
+  let sqlParams = [subtask_id];
+  return select_multiple_decorator(sql, sqlParams, "样例");
+}
+
 // 返回数据格式和select_data_by_problem_id一样，但是改成查找属于特定子任务的数据
 function select_data_by_subtask_id(subtask_id) {
-  // TODO
+  let sql =
+    'SELECT data_id AS id, \
+               data_attribute AS attribute, \
+               data_input_filename AS input_filename, \
+               data_output_filename AS output_filename, \
+               data_score AS score \
+               FROM data WHERE subtask_id = ? \
+               AND data_attribute = "non_sample";';
+  let sqlParams = [subtask_id];
+  return select_multiple_decorator(sql, sqlParams, "样例");
 }
 
 // 返回数据格式和select_data_by_problem_id一样，但是改成根据data_id查找数据，并且返回的result属性是一个单个数据的对象，而不是数组
 function select_data_by_id(data_id) {
-  // TODO
+  let sql =
+    'SELECT data_id AS id, \
+               data_attribute AS attribute, \
+               data_input_filename AS input_filename, \
+               data_output_filename AS output_filename, \
+               data_score AS score \
+               FROM data WHERE data_id = ? \
+               AND data_attribute = "non_sample";';
+  let sqlParams = [data_id];
+  return select_one_decorator(sql, sqlParams, "样例");
 }
 
 function select_official_data_by_problem_id(problem_id) {
@@ -244,4 +278,6 @@ module.exports = {
   delete_workshop_data_by_problem_id,
 
   select_data_by_subtask_id,
+
+  select_sample_by_subtask_id,
 };
