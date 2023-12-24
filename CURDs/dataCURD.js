@@ -79,7 +79,7 @@ function insert_data(
                problem_is_official, data_attribute, \
                subtask_number, testpoint_number, \
                data_input_filename, data_output_filename,data_score) \
-               VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+               VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     problem_id,
     subtask_id,

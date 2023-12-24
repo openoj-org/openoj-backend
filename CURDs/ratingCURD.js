@@ -3,6 +3,7 @@
  * 作者: niehy21
  * 最后更新时间: 2023/12/14
  */
+const { modifySql } = require("../utils");
 const {
   select_one_decorator,
   insert_one_decorator,
@@ -46,12 +47,11 @@ function insert_workshop_rating(problem_id, user_id, rating) {
   return insert_rating(problem_id, user_id, rating, 0);
 }
 
-// TODO: 此处遗漏了problem_is_official参数，请补充；此外，需要判断可能之前并没有评分，但仍然调用这个函数，这时就什么也不做
-function delete_rating(problem_id, user_id) {
+function delete_rating(problem_id, user_id, problem_is_official) {
   let sql =
     "DELECT FROM ratings WHERE problem_id \
-               = ? AND rating_submit_user_id = ?;";
-  let sqlParams = [problem_id, user_id];
+               = ? AND rating_submit_user_id = ? AND problem_is_official = ?;";
+  let sqlParams = [problem_id, user_id, problem_is_official ? 1 : 0];
   return delete_decorator(sql, sqlParams, "评分");
 }
 
@@ -72,7 +72,10 @@ function delete_workshop_rating(problem_id, user_id) {
  * @param {*} problem_is_official
  */
 function delete_rating_by_pid(problem_id, problem_is_official) {
-  // TODO
+  let sql =
+    "DELETE FROM ratings WHERE problem_id = ? AND problem_is_official = ?";
+  let sqlParams = [problem_id, problem_is_official ? 1 : 0];
+  return delete_decorator(sql, sqlParams, "难度");
 }
 
 /**
@@ -86,8 +89,16 @@ function delete_rating_by_pid(problem_id, problem_is_official) {
  *
  * 返回的result属性是结果，有一个recommend属性，为true表示推荐过，为false表示没有推荐过
  */
-function select_recommendation_by_pid_and_uid(problem_id, user_id) {
-  // TODO
+async function select_recommendation_by_pid_and_uid(problem_id, user_id) {
+  try {
+    let sql =
+      "SELECT COUNT(*) FROM recommendations WHERE problem_id = ? AND recommendation_submit_user_id = ?";
+    let sqlParams = [problem_id, user_id];
+    const tmp = await modifySql(sql, sqlParams);
+    return { success: true, recommend: tmp[0]["COUNT(*)"] > 0 };
+  } catch (e) {
+    return { success: false, message: "查询用户推荐出错" };
+  }
 }
 
 /**

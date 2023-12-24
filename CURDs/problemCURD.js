@@ -104,6 +104,7 @@ function select_official_problem_by_id(id) {
           ? 0
           : obj.result.gradeSum / obj.result.gradeNum;
       delete obj.result.passNum;
+      obj.result.submit = obj.result.submitNum;
       delete obj.result.submitNum;
       delete obj.result.gradeSum;
       delete obj.result.gradeNum;
@@ -125,13 +126,19 @@ async function select_official_problems_by_param_order(
   start,
   end
 ) {
+  let real_order = "problem_id";
+  switch (order) {
+    case "id":
+      real_order = "problem_id";
+    case "title":
+      real_order = "problem_name";
+    case "grade":
+      real_order = "(problem_grade_sum / (problem_grade_number + 1))";
+  }
   let sql = 'SELECT * FROM official_problems WHERE problem_name LIKE "';
   sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
   sql += "%" + sourceKeyword + '%" ORDER BY ';
-  sql +=
-    order == "grade"
-      ? "(problem_grade_sum / (problem_grade_number + 1))"
-      : order;
+  sql += real_order;
   sql += increase ? " ASC " : " DESC ";
   if (start != null && end != null) {
     sql += "LIMIT " + start + ", " + end;
@@ -150,12 +157,10 @@ async function select_official_problems_by_param_order(
           'SELECT COUNT(*) FROM official_problems WHERE problem_name LIKE "';
         sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
         sql += "%" + sourceKeyword + '%" ORDER BY ';
-        sql +=
-          order == "grade"
-            ? "(problem_grade_sum / (problem_grade_number + 1))"
-            : order;
+        sql += real_order;
         sql += increase ? " ASC " : " DESC ";
-        let [count] = await querySql(sql);
+        let tmp = await querySql(sql);
+        const count = tmp[0]["COUNT(*)"];
         return {
           success: true,
           message: "题目查询成功",
@@ -199,18 +204,19 @@ function insert_official_problem(
   rangeAndHint,
   source
 ) {
+  const real_type = ["traditional", "interactive", "answer"][type];
   let sql =
     "INSERT INTO official_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
-			   problem_range_and_hint, problem_source, problem_submit_time) \
+			   problem_data_range_and_hint, problem_source, problem_submit_time) \
 			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     id,
     title,
     titleEn,
-    type,
+    real_type,
     timeLimit,
     memoryLimit,
     background,
@@ -238,18 +244,19 @@ function insert_workshop_problem(
   rangeAndHint,
   source
 ) {
+  const real_type = ["traditional", "interactive", "answer"][type];
   let sql =
     "INSERT INTO workshop_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
-			   problem_range_and_hint, problem_source, problem_submit_time) \
+			   problem_data_range_and_hint, problem_source, problem_submit_time) \
 			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     id,
     title,
     titleEn,
-    type,
+    real_type,
     timeLimit,
     memoryLimit,
     background,
@@ -265,13 +272,13 @@ function insert_workshop_problem(
 
 function update_official_problem(id, param, value) {
   let sql = `UPDATE official_problems SET ${param} = ? WHERE problem_id = ?;`;
-  let sqlParams = [param, value, id];
+  let sqlParams = [value, id];
   return update_decorator(sql, sqlParams, "官方题目");
 }
 
 function update_workshop_problem(id, param, value) {
   let sql = `UPDATE workshop_problems SET ${param} = ? WHERE problem_id = ?;`;
-  let sqlParams = [param, value, id];
+  let sqlParams = [value, id];
   return update_decorator(sql, sqlParams, "工坊题目");
 }
 

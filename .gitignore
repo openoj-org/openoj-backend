@@ -3,3 +3,4 @@ package-lock.json
 static/official_problem/
 static/workshop_problem/
 yarn.lock
+temp/

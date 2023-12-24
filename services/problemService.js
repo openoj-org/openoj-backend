@@ -15,6 +15,7 @@ const {
   delete_workshop_problem,
   update_workshop_problem,
   insert_workshop_problem,
+  select_evaluation_configs_by_id,
 } = require("../CURDs/problemCURD");
 const {
   insert_subtask,
@@ -130,44 +131,42 @@ function validate_problem_zip_extract(extractPath) {
       return { success: false, message: "文件缺失" };
     }
 
+    let obj = {};
     // 读取 summary.txt
-    fs.readFile(extractPath + "/config.txt", "utf8", (err, data) => {
-      if (err) {
-        return { success: false, message: "读取文件失败" };
-      }
+    const data = fs.readFileSync(extractPath + "/summary.txt", "utf8");
 
-      // 按行分隔
-      const lines = data.split("\n");
-      if (lines.length < 5 || lines.length > 6) {
-        return { success: false, message: "文件格式有误" };
-      }
+    // 按行分隔
+    const lines = data.replaceAll("\r", "").split("\n");
+    if (lines.length < 5 || lines.length > 6) {
+      return { success: false, message: "文件格式有误" };
+    }
 
-      /*题目名称。
+    /*题目名称。
 第二行填写题目英文名称。
 第三行填写题目类型，是一个非负整数：0 （代表传统型），1（代表...）。
 第四行填写时间限制，是一个正整数，单位：毫秒。
 第五行填写空间限制，是一个正整数，单位：MB。
 第六行填写题目来源，如果没有则可以只写前五行。 */
-      let obj = {};
-      obj.title = lines[0];
-      obj.titleEn = lines[1];
-      if ((obj.type = Number(lines[2])) != 0) {
-        return { success: false, message: "文件格式有误" };
-      }
-      obj.timeLimit = Number(lines[3]);
-      obj.memoryLimit = Number(lines[4]);
-      if (lines.length == 6) {
-        obj.source = lines[5];
-      } else {
-        obj.source = "";
-      }
-    });
+    obj.title = lines[0];
+    obj.titleEn = lines[1];
+    if ((obj.type = Number(lines[2])) != 0) {
+      return { success: false, message: "文件格式有误" };
+    }
+    obj.timeLimit = Number(lines[3]);
+    obj.memoryLimit = Number(lines[4]);
+    if (lines.length == 6) {
+      obj.source = lines[5];
+    } else {
+      obj.source = "";
+    }
 
     const path = extractPath;
     // 读取描述信息
     if (fs.existsSync(path + "/background.md")) {
       obj.background = fs.readFileSync(path + "/background.md").toString();
-    } else obj.background = null;
+    } else {
+      obj.background = null;
+    }
     obj.statement = fs.readFileSync(path + "/description.md").toString();
     obj.inputStatement = fs
       .readFileSync(path + "/inputStatement.md")
@@ -176,7 +175,6 @@ function validate_problem_zip_extract(extractPath) {
       .readFileSync(path + "/outputStatement.md")
       .toString();
     obj.rangeAndHint = fs.readFileSync(path + "/rangeAndHint.md").toString();
-
     return {
       success: true,
       message: "",
@@ -202,179 +200,173 @@ function validate_data_zip_extract(extractPath) {
   }
 
   // 读取 config.txt
-  fs.readFile(extractPath + "/config.txt", "utf8", (err, data) => {
-    if (err) {
+  const data = fs.readFileSync(extractPath + "/config.txt", "utf8");
+
+  // 按行分隔
+  const lines = data.replaceAll("\r", "").split("\n");
+  if (lines.length < 1) {
+    return failValue;
+  }
+
+  // 第一行两个整数
+  // 是否采用子任务、是否采用 SPJ
+  const basicConfigs = lines[0].replace(/\s+/g, " ").split(" ");
+  if (basicConfigs.length < 2) {
+    return failValue;
+  }
+  if (basicConfigs[0] !== "0" && basicConfigs[0] !== "1") {
+    return failValue;
+  }
+  if (basicConfigs[1] !== "0" && basicConfigs[1] !== "1") {
+    return failValue;
+  }
+
+  // 是否使用子任务
+  const isSubtaskUsed = Number(basicConfigs[0]);
+  // 是否使用 SPJ
+  const isSPJUsed = Number(basicConfigs[1]);
+
+  if (
+    (isSPJUsed && basicConfigs.length === 2) ||
+    (!isSPJUsed && basicConfigs.length === 3)
+  ) {
+    return failValue;
+  }
+
+  // 若使用 SPJ, 其文件名
+  const SPJFilename = isSPJUsed ? basicConfigs[2] : null;
+
+  // 使用子任务
+  if (isSubtaskUsed) {
+    // 创建一个数据结构，用于存储子任务的信息，包括每一个子任务的分数和包含的测试点数量，以及每个测试点的输入文件、输出文件、类型
+    // 例如：subtask = [{score: 10, caseNum: 3, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}, {input: 3.in, output: 3.out, type: 0}]}, {score: 20, caseNum: 2, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}]}]
+    let subtasks = [];
+    let subtaskNum = Number(lines[1]);
+    if (subtaskNum < 1) {
       return failValue;
     }
-
-    // 按行分隔
-    const lines = data.split("\n");
-    if (lines.length < 1) {
-      return failValue;
-    }
-
-    // 第一行两个整数
-    // 是否采用子任务、是否采用 SPJ
-    const basicConfigs = lines[0].replace(/\s+/g, " ").split(" ");
-    if (basicConfigs.length < 2) {
-      return failValue;
-    }
-    if (basicConfigs[0] !== "0" && basicConfigs[0] !== "1") {
-      return failValue;
-    }
-    if (basicConfigs[1] !== "0" && basicConfigs[1] !== "1") {
-      return failValue;
-    }
-
-    // 是否使用子任务
-    const isSubtaskUsed = Number(basicConfigs[0]);
-    // 是否使用 SPJ
-    const isSPJUsed = Number(basicConfigs[1]);
-
-    if (
-      (isSPJUsed && basicConfigs.length === 2) ||
-      (!isSPJUsed && basicConfigs.length === 3)
-    ) {
-      return failValue;
-    }
-
-    // 若使用 SPJ, 其文件名
-    const SPJFilename = isSPJUsed ? basicConfigs[2] : null;
-
-    // 使用子任务
-    if (isSubtaskUsed) {
-      // 创建一个数据结构，用于存储子任务的信息，包括每一个子任务的分数和包含的测试点数量，以及每个测试点的输入文件、输出文件、类型
-      // 例如：subtask = [{score: 10, caseNum: 3, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}, {input: 3.in, output: 3.out, type: 0}]}, {score: 20, caseNum: 2, cases: [{input: 1.in, output: 1.out, type: 0}, {input: 2.in, output: 2.out, type: 0}]}]
-      let subtasks = [];
-      let subtaskNum = Number(lines[1]);
-      if (subtaskNum < 1) {
+    let i = 0;
+    let current_line = 2;
+    // let task = {
+    //   score: 0,
+    //   caseNum: subtaskNum,
+    //   subtasks: []
+    // };
+    while (i < subtaskNum) {
+      const subtaskConfigs = lines[current_line]
+        .replace(/\s+/g, " ")
+        .split(" ");
+      if (subtaskConfigs.length < 2) {
         return failValue;
       }
-      let i = 0;
-      let current_line = 2;
-      // let task = {
-      //   score: 0,
-      //   caseNum: subtaskNum,
-      //   subtasks: []
-      // };
-      while (i < subtaskNum) {
-        const subtaskConfigs = lines[current_line]
-          .replace(/\s+/g, " ")
-          .split(" ");
-        if (subtaskConfigs.length < 2) {
-          return failValue;
-        }
-        const subtaskCaseNum = Number(subtaskConfigs[0]);
-        const subtaskScore = Number(subtaskConfigs[1]);
+      const subtaskCaseNum = Number(subtaskConfigs[0]);
+      const subtaskScore = Number(subtaskConfigs[1]);
 
-        if (subtaskScore < 1 || subtaskCaseNum < 1) {
-          return failValue;
-        }
-        // 存储每个子任务的信息
-        let subtask = {
-          score: subtaskScore,
-          caseNum: subtaskCaseNum,
-          cases: [],
-        };
-        // 读取每个子任务的测试点信息
-        current_line++;
-        let j = 0;
-        while (j < subtaskCaseNum) {
-          const caseConfigs = lines[current_line]
-            .replace(/\s+/g, " ")
-            .split(" ");
-          if (caseConfigs.length < 3) {
-            return failValue;
-          }
-          const caseInput = caseConfigs[0];
-          const caseOutput = caseConfigs[1];
-          const caseType = Number(caseConfigs[2]);
-          if (caseType !== 0 && caseType !== 1) {
-            return failValue;
-          }
-          // 存储每个测试点的信息
-          let testcase = {
-            input: caseInput,
-            output: caseOutput,
-            type: caseType,
-          };
-          subtask.cases.push(testcase);
-          j++;
-          current_line++;
-        }
-        i++;
-        subtasks.push(subtask);
-      }
-
-      return isSPJUsed
-        ? {
-            success: true,
-            isSubtaskUsed: isSubtaskUsed,
-            isSPJUsed: isSPJUsed,
-            SPJFilename: SPJFilename,
-            subtasks: subtasks,
-          }
-        : {
-            success: true,
-            isSubtaskUsed: isSubtaskUsed,
-            isSPJUsed: isSPJUsed,
-            subtasks: subtasks,
-          };
-    }
-    // 不使用子任务
-    else {
-      // 读取测试点信息
-      let caseNum = Number(lines[1]);
-      if (caseNum < 1) {
+      if (subtaskScore < 0 || subtaskCaseNum < 1) {
         return failValue;
       }
-      let i = 0;
-      let current_line = 2;
-      let task = {
-        score: 0,
-        caseNum: caseNum,
+      // 存储每个子任务的信息
+      let subtask = {
+        score: subtaskScore,
+        caseNum: subtaskCaseNum,
         cases: [],
       };
-      while (i < caseNum) {
+      // 读取每个子任务的测试点信息
+      current_line++;
+      let j = 0;
+      while (j < subtaskCaseNum) {
         const caseConfigs = lines[current_line].replace(/\s+/g, " ").split(" ");
-        if (caseConfigs.length < 4) {
+        if (caseConfigs.length < 3) {
           return failValue;
         }
         const caseInput = caseConfigs[0];
         const caseOutput = caseConfigs[1];
-        const caseScore = Number(caseConfigs[2]);
-        const caseType = Number(caseConfigs[3]);
+        const caseType = Number(caseConfigs[2]);
         if (caseType !== 0 && caseType !== 1) {
           return failValue;
         }
-        let _case = {
+        // 存储每个测试点的信息
+        let testcase = {
           input: caseInput,
           output: caseOutput,
-          score: caseScore,
           type: caseType,
         };
-        task.score = task.score + _case.score;
-        task.cases.push(_case);
-        i++;
+        subtask.cases.push(testcase);
+        j++;
         current_line++;
       }
-
-      return isSPJUsed
-        ? {
-            success: true,
-            isSubtaskUsed: isSubtaskUsed,
-            isSPJUsed: isSPJUsed,
-            SPJFilename: SPJFilename,
-            cases: task.cases,
-          }
-        : {
-            success: true,
-            isSubtaskUsed: isSubtaskUsed,
-            isSPJUsed: isSPJUsed,
-            cases: task.cases,
-          };
+      i++;
+      subtasks.push(subtask);
     }
-  });
+
+    return isSPJUsed
+      ? {
+          success: true,
+          isSubtaskUsed: isSubtaskUsed,
+          isSPJUsed: isSPJUsed,
+          SPJFilename: SPJFilename,
+          subtasks: subtasks,
+        }
+      : {
+          success: true,
+          isSubtaskUsed: isSubtaskUsed,
+          isSPJUsed: isSPJUsed,
+          subtasks: subtasks,
+        };
+  }
+  // 不使用子任务
+  else {
+    // 读取测试点信息
+    let caseNum = Number(lines[1]);
+    if (caseNum < 1) {
+      return failValue;
+    }
+    let i = 0;
+    let current_line = 2;
+    let task = {
+      score: 0,
+      caseNum: caseNum,
+      cases: [],
+    };
+    while (i < caseNum) {
+      const caseConfigs = lines[current_line].replace(/\s+/g, " ").split(" ");
+      if (caseConfigs.length < 4) {
+        return failValue;
+      }
+      const caseInput = caseConfigs[0];
+      const caseOutput = caseConfigs[1];
+      const caseScore = Number(caseConfigs[2]);
+      const caseType = Number(caseConfigs[3]);
+      if (caseType !== 0 && caseType !== 1) {
+        return failValue;
+      }
+      let _case = {
+        input: caseInput,
+        output: caseOutput,
+        score: caseScore,
+        type: caseType,
+      };
+      task.score = task.score + _case.score;
+      task.cases.push(_case);
+      i++;
+      current_line++;
+    }
+
+    return isSPJUsed
+      ? {
+          success: true,
+          isSubtaskUsed: isSubtaskUsed,
+          isSPJUsed: isSPJUsed,
+          SPJFilename: SPJFilename,
+          cases: task.cases,
+        }
+      : {
+          success: true,
+          isSubtaskUsed: isSubtaskUsed,
+          isSPJUsed: isSPJUsed,
+          cases: task.cases,
+        };
+  }
 }
 
 // 检验上传题目的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
@@ -385,7 +377,7 @@ function validate_zip_extract(extractPath) {
     return { success: false, message: "目录有误" };
   }
 
-  let problem_info = validate_problem_zip_extract(extractPath + "/problem");
+  let problem_info = validate_problem_zip_extract(extractPath + "/question");
   if (!problem_info.success) {
     return problem_info;
   }
@@ -411,244 +403,234 @@ function validate_zip_extract(extractPath) {
 }
 
 // 获取题目样例文件
-function problem_samples(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let { id } = req.query;
+async function problem_samples(req, res, next) {
+  let { id } = req.query;
+  // 获取除 tag, score 和 sample 外的题目信息
+  let problem_info = await select_official_problem_by_id(id);
+  if (!problem_info.success) {
+    res.json(problem_info);
+    return;
+  }
+  const titleEn = problem_info.result.titleEn;
 
-      // 创建 zip 对象
-      let zipDir = "./temp/problem_" + id + "_data.zip";
-      let zip = new admZip();
+  // 创建 zip 对象
+  let zipDir = "./temp/problem_" + id + "_data.zip";
+  let zip = new admZip();
 
-      // 查找样例失败, 返回空 .zip
-      let samples = await select_official_sample_by_problem_id(id);
-      if (samples.success) {
-        // 将每个样例加入压缩包
-        try {
-          // console.log(samples);
-          samples.result.forEach((element) => {
-            let dataDir = "./static/official_problem/" + id + "/data/";
-            zip.addFile(
-              element.input_filename,
-              fs.readFileSync(dataDir + element.input_filename, "utf8")
-            );
-            zip.addFile(
-              element.output_filename,
-              fs.readFileSync(dataDir + element.output_filename, "utf8")
-            );
-          });
-        } catch (e) {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: "读取样例文件失败",
-          });
-          return;
-        }
-      }
-
-      // 生成压缩包
-      try {
-        zip.writeZip(zipDir);
-      } catch (e) {
-        res.status(CODE_ERROR).json({
-          success: false,
-          message: "创建压缩包失败",
-        });
-        return;
-      }
-
-      // 创建下载任务
-      res.download(zipDir, (e) => {
-        if (e) {
-          res.status(CODE_ERROR).json({
-            success: false,
-            message: "创建下载任务失败",
-          });
-        } else {
-          fs.rmSync(zipDir);
-        }
+  // 查找样例失败, 返回空 .zip
+  let samples = await select_official_sample_by_problem_id(id);
+  if (samples.success) {
+    // 将每个样例加入压缩包
+    try {
+      let index = 0;
+      samples.result.forEach((element) => {
+        zip.addFile(
+          titleEn + (index + 1).toString() + ".in",
+          fs.readFileSync(element.input_filename, "utf8")
+        );
+        zip.addFile(
+          titleEn + (index + 1).toString() + ".out",
+          fs.readFileSync(element.output_filename, "utf8")
+        );
+        index += 1;
       });
-    },
-    false
-  );
+    } catch (e) {
+      res.status(CODE_ERROR).json({
+        success: false,
+        message: "读取样例文件失败",
+      });
+      return;
+    }
+  }
+
+  // 生成压缩包
+  try {
+    zip.writeZip(zipDir);
+  } catch (e) {
+    res.status(CODE_ERROR).json({
+      success: false,
+      message: "创建压缩包失败",
+    });
+    return;
+  }
+
+  // 创建下载任务
+  res.download(zipDir, (e) => {
+    if (e) {
+      res.status(CODE_ERROR).json({
+        success: false,
+        message: "创建下载任务失败",
+      });
+    } else {
+      fs.rmSync(zipDir);
+    }
+  });
 }
 
 // 获取题目列表
-function problem_list(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let {
-        evaluation,
-        cookie,
-        order,
-        increase,
-        titleKeyword,
-        sourceKeyword,
-        tagKeyword,
-        start,
-        end,
-      } = req.query;
-      if (typeof evaluation == "string") evaluation = evaluation == "true";
+async function problem_list(req, res, next) {
+  let {
+    evaluation,
+    cookie,
+    order,
+    increase,
+    titleKeyword,
+    sourceKeyword,
+    tagKeyword,
+    start,
+    end,
+  } = req.query;
+  if (typeof evaluation == "string") evaluation = evaluation == "true";
 
-      let userId = null;
-      if (cookie != null && cookie != undefined) {
-        let tmp = await select_user_id_by_cookie(cookie);
-        if (tmp.success == false) return tmp;
-        userId = tmp.id;
-      }
+  let userId = null;
+  if (cookie != null && cookie != undefined) {
+    let tmp = await select_user_id_by_cookie(cookie);
+    if (tmp.success == false) {
+      res.json(tmp);
+      return;
+    }
+    userId = tmp.id;
+  }
 
-      let tmp = await select_official_problems_by_param_order(
-        order,
-        increase,
-        titleKeyword,
-        sourceKeyword,
-        start,
-        end
-      );
-      if (tmp.success == false) return tmp;
-      let problems = tmp.result,
-        count = tmp.count;
-      for (let i = 0; i < problems.length; i++) {
-        let problem = problems[i];
-        if (userId != null) {
-          // 检验 cookie 有效性, 若是则根据用户 id 查询 score
-          if (cookie != null) {
-            let cookie_verified = await authenticate_cookie(cookie, 3);
-            if (cookie_verified.success) {
-              let highest_score = await select_official_score_by_pid_and_uid(
-                id,
-                cookie_verified.id
-              );
-              problem.score = highest_score.success
-                ? highest_score.score
-                : undefined;
-            } else {
-              return cookie_verified;
-            }
+  let tmp = await select_official_problems_by_param_order(
+    order,
+    increase,
+    titleKeyword,
+    sourceKeyword,
+    start,
+    end
+  );
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  let problems = tmp.result,
+    count = tmp.count;
+  for (let i = 0; i < problems.length; i++) {
+    let problem = problems[i];
+    if (userId != null) {
+      // 检验 cookie 有效性, 若是则根据用户 id 查询 score
+      if (cookie != null) {
+        let cookie_verified = await authenticate_cookie(cookie, 3);
+        if (cookie_verified.success) {
+          let highest_score = await select_official_score_by_pid_and_uid(
+            problem.id,
+            cookie_verified.id
+          );
+          problem.score = highest_score.success
+            ? highest_score.score
+            : undefined;
+        } else {
+          {
+            res.json(cookie_verified);
+            return;
           }
         }
-        problem.score = tmp.result.score;
-        if (evaluation) {
-          tmp = await select_official_tags_by_id(problem.id);
-          if (tmp.success == false) return tmp;
-          problem.tags = tmp.tags;
-        } else {
-          delete problem.grade;
-        }
-        problems[i] = problem;
       }
-      // todo: 实现根据tagKeyword筛选
-      return {
-        success: true,
-        result: problems,
-        count: count,
-      };
-    },
-    false
-  );
+    }
+    if (evaluation) {
+      tmp = await select_official_tags_by_id(problem.id);
+      if (tmp.success == false) {
+        res.json(tmp);
+        return;
+      }
+      problem.tags = tmp.tags;
+    } else {
+      delete problem.grade;
+    }
+    problems[i] = problem;
+  }
+  // todo: 实现根据tagKeyword筛选
+  res.json({
+    success: true,
+    result: problems,
+    count: count,
+  });
+  return;
 }
 
 // 获取题目信息
-function problem_info(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let { id, evaluation, cookie } = req.query;
-      if (typeof evaluation == "string") evaluation = evaluation == "true";
-      try {
-        // 获取除 tag, score 和 sample 外的题目信息
-        let problem_info = await select_official_problem_by_id(id);
-        if (!problem_info.success) {
-          return problem_info;
-        }
+async function problem_info(req, res, next) {
+  let { id, evaluation, cookie } = req.query;
+  if (typeof evaluation == "string") evaluation = evaluation == "true";
+  try {
+    // 获取除 tag, score 和 sample 外的题目信息
+    let problem_info = await select_official_problem_by_id(id);
+    if (!problem_info.success) {
+      res.json(problem_info);
+      return;
+    }
+    problem_info = problem_info.result;
 
-        // 不需要获取评分和标签, 则直接返回
-        if (!evaluation) {
-          delete problem_info.result.grade;
-          return problem_info;
-        }
+    switch (problem_info.type) {
+      case "traditional":
+        problem_info.type = 0;
+        break;
+      case "interactive":
+        problem_info.type = 1;
+        break;
+      case "answer":
+        problem_info.type = 2;
+        break;
+    }
 
-        // 查询 tag 列表
-        let tags_info = await select_official_tags_by_id(id);
-        problem_info.tags = tags_info.success ? tags_info.tags : [];
+    // 不需要获取评分和标签, 则直接返回
+    if (!evaluation) {
+      delete problem_info.result.grade;
+      res.json(problem_info);
+      return;
+    }
 
-        // 检验 cookie 有效性, 若是则根据用户 id 查询 score
-        if (cookie != null) {
-          let cookie_verified = await authenticate_cookie(cookie, 3);
-          if (cookie_verified.success) {
-            let highest_score = await select_official_score_by_pid_and_uid(
-              id,
-              cookie_verified.id
-            );
-            problem_info.score = highest_score.success
-              ? highest_score.score
-              : 0;
-          } else {
-            return cookie_verified;
-          }
-        }
+    // 查询 tag 列表
+    let tags_info = await select_official_tags_by_id(id);
+    problem_info.tags = tags_info.success ? tags_info.tags : [];
 
-        // 读取样例
-        let samples = await select_official_sample_by_problem_id(id);
-        if (samples.success) {
-          problem_info.samples = samples.result.map((sample) => {
-            if (sample.attribute == "hidden_sample") {
-              return {
-                display: false,
-              };
-            }
-            let input_content = "";
-            let output_content = "";
-            try {
-              input_content = fs.readFileSync(
-                "./static/official_problem/" +
-                  id +
-                  "/data/" +
-                  sample.input_filename,
-                "utf8"
-              );
-            } catch (err) {
-              input_content = "读取输入时发生错误";
-            }
-            try {
-              output_content = fs.readFileSync(
-                "./static/official_problem/" +
-                  id +
-                  "/data/" +
-                  sample.output_filename,
-                "utf8"
-              );
-            } catch (err) {
-              input_content = "读取输入时发生错误";
-            }
-            return {
-              display: true,
-              input: input_content,
-              output: output_content,
-            };
-          });
-        } else {
-          // 读取样例失败, 更新错误信息并将 samples 字段置空
-          problem_info.message = samples.message;
-          problem_info.samples = [];
-        }
-
-        // 最终返回全部信息
-        return problem_info;
-      } catch (e) {
-        return e;
+    // 检验 cookie 有效性, 若是则根据用户 id 查询 score
+    if (cookie != null) {
+      let cookie_verified = await authenticate_cookie(cookie, 3);
+      if (cookie_verified.success) {
+        let highest_score = await select_official_score_by_pid_and_uid(
+          id,
+          cookie_verified.id
+        );
+        problem_info.score = highest_score.success ? highest_score.score : 0;
+      } else {
+        res.json(cookie_verified);
+        return;
       }
-    },
-    true
-  );
+    }
+
+    // 读取样例
+    let samples = await select_official_sample_by_problem_id(id);
+    if (samples.success) {
+      problem_info.samples = samples.result.map((sample) => {
+        if (sample.attribute == "hidden_sample") {
+          return {
+            display: false,
+          };
+        }
+        let input_content = "";
+        let output_content = "";
+        input_content = fs.readFileSync(sample.input_filename, "utf8");
+        output_content = fs.readFileSync(sample.output_filename, "utf8");
+        return {
+          display: true,
+          input: input_content,
+          output: output_content,
+        };
+      });
+    } else {
+      // 读取样例失败, 更新错误信息并将 samples 字段置空
+      problem_info.message = samples.message;
+      problem_info.samples = [];
+    }
+
+    // 最终返回全部信息
+    res.json(problem_info);
+    return;
+  } catch (e) {
+    res.json({ success: false, message: "文件操作出错" });
+  }
 }
 
 // 实际用于删除题目数据的函数
@@ -945,6 +927,7 @@ async function real_problem_insert_data(id, problemType, info, path) {
             "problem_use_subtask",
             info.isSubtaskUsed
           );
+    if (!tmp.success) return tmp;
     if (!info.isSubtaskUsed) {
       // 如果不使用子任务
       const datas = info.cases;
@@ -1226,7 +1209,7 @@ function ReadFile(filepath) {
 
 function createSessionId() {
   var formatedUUID = uuidv1();
-  console.log(formatedUUID);
+  // console.log(formatedUUID);
   return formatedUUID;
 }
 
