@@ -25,8 +25,16 @@ function select_reply_by_param_order() {}
  * @param {*} problem_id
  * @param {*} problem_is_official
  */
-function delete_post_by_problem_id(problem_id, problem_is_official) {
-  // TODO
+async function delete_post_by_problem_id(problem_id, problem_is_official) {
+  try {
+    let sql =
+      "DELETE FROM posts WHERE problem_id = ? AND post_is_question_discussion = ?;";
+    let sqlParams = [problem_id, problem_is_official ? 1 : 2];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除帖子失败" };
+  }
 }
 
 /**
@@ -40,8 +48,16 @@ function delete_post_by_problem_id(problem_id, problem_is_official) {
  * 返回的值包含一个result属性，是一个数组，每个元素描述一个帖子，属性如下：
  * id: 帖子id
  */
-function select_posts_by_problem_id(problem_id, problem_is_official) {
-  // TODO
+async function select_posts_by_problem_id(problem_id, problem_is_official) {
+  try {
+    let sql =
+      "SELECT post_id AS id FROM posts WHERE problem_id = ? AND post_is_question_discussion = ?;";
+    let sqlParams = [problem_id, problem_is_official ? 1 : 2];
+    const result = await modifySql(sql, sqlParams);
+    return { success: true, result: result };
+  } catch (e) {
+    return { success: false, message: "获取帖子失败" };
+  }
 }
 
 /**
@@ -51,8 +67,15 @@ function select_posts_by_problem_id(problem_id, problem_is_official) {
  *
  * @param {*} post_id
  */
-function delete_reply_by_post_id(post_id) {
-  // TODO
+async function delete_reply_by_post_id(post_id) {
+  try {
+    let sql = "DELETE FROM replies WHERE post_id = ?";
+    let sqlParams = [post_id];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除回复失败" };
+  }
 }
 
 module.exports = {
