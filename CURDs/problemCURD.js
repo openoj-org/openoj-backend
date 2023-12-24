@@ -116,7 +116,54 @@ function select_official_problem_by_id(id) {
 
 // select_official_problem_by_id的创意工坊版本
 function select_workshop_problem_by_id(id) {
-  // TODO
+  // SQL 查询语句和参数列表
+  let sql = "";
+  let sqlParams = [id];
+
+  // 查询语句确定被查表和查询结果的主要部分
+  let mainStr =
+    "SELECT problem_name AS title, \
+		problem_english_name AS titleEn, \
+		problem_source AS source, \
+		problem_submit_number AS submitNum, \
+		problem_pass_number AS passNum, \
+		problem_grade_sum AS gradeSum, \
+		problem_grade_number AS gradeNum, \
+    problem_recommendation_number AS recommendation, \
+		problem_type AS type, \
+		problem_time_limit AS timeLimit, \
+		problem_memory_limit AS memoryLimit, \
+		problem_background AS background, \
+		problem_description AS statement, \
+		problem_input_format AS inputStatement, \
+		problem_output_format AS outputStatement, \
+		problem_data_range_and_hint AS rangeAndHint \
+		FROM workshop_problems ";
+
+  // 查询语句的 WHERE 子句
+  let whereStr = "WHERE problem_id = ?;";
+
+  // SQL 查询语句拼接
+  sql = mainStr + whereStr;
+
+  return select_one_decorator(sql, sqlParams, "创意工坊题目").then((obj) => {
+    if (obj.success) {
+      obj.result.pass =
+        obj.result.submitNum == 0
+          ? 0
+          : obj.result.passNum / obj.result.submitNum;
+      obj.result.grade =
+        obj.result.gradeNum == 0
+          ? 0
+          : obj.result.gradeSum / obj.result.gradeNum;
+      delete obj.result.passNum;
+      obj.result.submit = obj.result.submitNum;
+      delete obj.result.submitNum;
+      delete obj.result.gradeSum;
+      delete obj.result.gradeNum;
+    }
+    return obj;
+  });
 }
 
 async function select_official_problems_by_param_order(
