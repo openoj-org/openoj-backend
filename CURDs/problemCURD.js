@@ -2,6 +2,7 @@ const {
   select_one_decorator,
   update_decorator,
   insert_one_decorator,
+  delete_decorator,
 } = require("./decorator");
 
 const {
@@ -283,13 +284,13 @@ function update_workshop_problem(id, param, value) {
 }
 
 function delete_official_problem(id) {
-  let sql = "DELECT FROM official_problems WHERE problem_id = ?;";
+  let sql = "DELETE FROM official_problems WHERE problem_id = ?;";
   let sqlParams = [id];
   return delete_decorator(sql, sqlParams, "官方题目");
 }
 
 function delete_workshop_problem(id) {
-  let sql = "DELECT FROM workshop_problems WHERE problem_id = ?;";
+  let sql = "DELETE FROM workshop_problems WHERE problem_id = ?;";
   let sqlParams = [id];
   return delete_decorator(sql, sqlParams, "工坊题目");
 }

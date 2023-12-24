@@ -648,7 +648,7 @@ async function real_problem_delete_data(id, type) {
   }
   const { isSubtaskUsed, isSPJUsed, SPJFilename } = tmp.result;
   // 如果有spj，删除spj文件
-  if (isSPJUsed) {
+  if (isSPJUsed && fs.existsSync(SPJFilename)) {
     fs.rmSync(SPJFilename);
   }
   // 删除所有数据点
@@ -1112,7 +1112,7 @@ async function problem_change_by_file(req, res, next) {
     res.json(cookie_verified);
     return;
   }
-  let tmp = await real_problem_delete(id);
+  let tmp = await real_problem_delete(id, TYPE);
   if (!tmp.success) {
     res.json(tmp);
     return;
