@@ -150,7 +150,6 @@ CREATE TABLE `official_problems`  (
   `problem_use_spj` tinyint NULL DEFAULT 1,
   `problem_spj_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   PRIMARY KEY (`problem_id`) USING BTREE,
-  UNIQUE INDEX `problem_id`(`problem_id` ASC) USING BTREE,
   FULLTEXT INDEX `problem_name`(`problem_name`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
@@ -290,6 +289,7 @@ CREATE TABLE `workshop_problems`  (
   `problem_type` enum('traditional','interactive','answer') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'traditional' COMMENT '问题类型，为 3 种枚举值之一',
   `problem_grade_sum` int NULL DEFAULT 0 COMMENT '问题评分总和',
   `problem_grade_number` int NULL DEFAULT 0 COMMENT '问题评分人数',
+  `problem_recommendation_number` int NULL DEFAULT 0 COMMENT '问题推荐人数',
   `problem_time_limit` int UNSIGNED NOT NULL DEFAULT 1000 COMMENT '问题时间限制',
   `problem_memory_limit` int UNSIGNED NOT NULL DEFAULT 256 COMMENT '问题空间限制',
   `problem_description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '问题描述的 Markdown 文本',
@@ -303,8 +303,10 @@ CREATE TABLE `workshop_problems`  (
   `problem_submit_time` bigint NULL DEFAULT 0 COMMENT '问题提交时间',
   `problem_submit_number` int NULL DEFAULT 0 COMMENT '问题提交总次数',
   `problem_pass_number` int NULL DEFAULT 0 COMMENT '问题通过总次数',
+  `problem_use_subtask` tinyint NULL DEFAULT 1,
+  `problem_use_spj` tinyint NULL DEFAULT 1,
+  `problem_spj_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   PRIMARY KEY (`problem_id`) USING BTREE,
-  UNIQUE INDEX `problem_id`(`problem_id` ASC) USING BTREE,
   FULLTEXT INDEX `problem_name`(`problem_name`),
   FULLTEXT INDEX `problem_source`(`problem_source`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;

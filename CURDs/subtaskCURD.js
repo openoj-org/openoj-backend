@@ -1,3 +1,4 @@
+const { modifySql } = require("../utils");
 const { insert_one_decorator } = require("./decorator");
 
 function insert_subtask(problem_id, problem_is_official, number, score) {
@@ -9,8 +10,16 @@ function insert_subtask(problem_id, problem_is_official, number, score) {
 }
 
 // 根据题目id，返回一个数组，数组的每个元素描述一个subtask，键值包含id（子任务id）、score（子任务分值），请按照子任务编号递增的顺序给出
-function select_subtask_by_problem_id(problem_id, problem_is_official) {
-  // TODO
+async function select_subtask_by_problem_id(problem_id, problem_is_official) {
+  try {
+    let sql =
+      "SELECT (subtask_id AS id, subtask_score AS score) FROM subtasks  WHERE problem_id = ? AND problem_is_official = ? ORDER BY subtask_number ASC;";
+    let sqlParams = [problem_id, problem_is_official ? 1 : 0];
+    const result = await modifySql(sql, sqlParams);
+    return { success: true, result: result };
+  } catch (e) {
+    return { success: false, message: "查询子任务失败" };
+  }
 }
 
 /**
@@ -21,8 +30,16 @@ function select_subtask_by_problem_id(problem_id, problem_is_official) {
  * @param {*} problem_id
  * @param {*} problem_is_official
  */
-function delete_subtask_by_problem_id(problem_id, problem_is_official) {
-  // TODO
+async function delete_subtask_by_problem_id(problem_id, problem_is_official) {
+  try {
+    let sql =
+      "DELETE FROM subtasks WHERE problem_id = ? AND problem_is_official = ?;";
+    let sqlParams = [problem_id, problem_is_official ? 1 : 0];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除子任务失败" };
+  }
 }
 
 module.exports = {

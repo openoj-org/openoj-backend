@@ -2,6 +2,7 @@ const {
   select_one_decorator,
   update_decorator,
   insert_one_decorator,
+  delete_decorator,
 } = require("./decorator");
 
 const {
@@ -18,7 +19,7 @@ function select_official_tags_by_id(id) {
     " AND problem_is_official = 1;";
   return querySql(sql)
     .then((result) => {
-      let flag = result && result.length > 0;
+      let flag = result != null && result != undefined;
       return {
         success: flag,
         message: flag ? "标签查询成功" : "标签不存在",
@@ -104,6 +105,7 @@ function select_official_problem_by_id(id) {
           ? 0
           : obj.result.gradeSum / obj.result.gradeNum;
       delete obj.result.passNum;
+      obj.result.submit = obj.result.submitNum;
       delete obj.result.submitNum;
       delete obj.result.gradeSum;
       delete obj.result.gradeNum;
@@ -114,10 +116,57 @@ function select_official_problem_by_id(id) {
 
 // select_official_problem_by_id的创意工坊版本
 function select_workshop_problem_by_id(id) {
-  // TODO
+  // SQL 查询语句和参数列表
+  let sql = "";
+  let sqlParams = [id];
+
+  // 查询语句确定被查表和查询结果的主要部分
+  let mainStr =
+    "SELECT problem_name AS title, \
+		problem_english_name AS titleEn, \
+		problem_source AS source, \
+		problem_submit_number AS submitNum, \
+		problem_pass_number AS passNum, \
+		problem_grade_sum AS gradeSum, \
+		problem_grade_number AS gradeNum, \
+    problem_recommendation_number AS recommendation, \
+		problem_type AS type, \
+		problem_time_limit AS timeLimit, \
+		problem_memory_limit AS memoryLimit, \
+		problem_background AS background, \
+		problem_description AS statement, \
+		problem_input_format AS inputStatement, \
+		problem_output_format AS outputStatement, \
+		problem_data_range_and_hint AS rangeAndHint \
+		FROM workshop_problems ";
+
+  // 查询语句的 WHERE 子句
+  let whereStr = "WHERE problem_id = ?;";
+
+  // SQL 查询语句拼接
+  sql = mainStr + whereStr;
+
+  return select_one_decorator(sql, sqlParams, "创意工坊题目").then((obj) => {
+    if (obj.success) {
+      obj.result.pass =
+        obj.result.submitNum == 0
+          ? 0
+          : obj.result.passNum / obj.result.submitNum;
+      obj.result.grade =
+        obj.result.gradeNum == 0
+          ? 0
+          : obj.result.gradeSum / obj.result.gradeNum;
+      delete obj.result.passNum;
+      obj.result.submit = obj.result.submitNum;
+      delete obj.result.submitNum;
+      delete obj.result.gradeSum;
+      delete obj.result.gradeNum;
+    }
+    return obj;
+  });
 }
 
-function select_official_problems_by_param_order(
+async function select_official_problems_by_param_order(
   order,
   increase,
   titleKeyword,
@@ -125,20 +174,26 @@ function select_official_problems_by_param_order(
   start,
   end
 ) {
+  let real_order = "problem_id";
+  switch (order) {
+    case "id":
+      real_order = "problem_id";
+    case "title":
+      real_order = "problem_name";
+    case "grade":
+      real_order = "(problem_grade_sum / (problem_grade_number + 1))";
+  }
   let sql = 'SELECT * FROM official_problems WHERE problem_name LIKE "';
-  sql += titleKeyword + '%" AND problem_source LIKE "';
-  sql += sourceKeyword + '%" ORDER BY ';
-  sql +=
-    order == "grade"
-      ? "(problem_grade_sum / (problem_grade_number + 1))"
-      : order;
+  sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+  sql += "%" + sourceKeyword + '%" ORDER BY ';
+  sql += real_order;
   sql += increase ? " ASC " : " DESC ";
   if (start != null && end != null) {
     sql += "LIMIT " + start + ", " + end;
   }
   return querySql(sql)
-    .then((probs) => {
-      if (!probs || probs.length == 0) {
+    .then(async (probs) => {
+      if (!probs) {
         return {
           success: false,
           message: "指定范围内题目不存在",
@@ -146,10 +201,18 @@ function select_official_problems_by_param_order(
           result: null,
         };
       } else {
+        let sql =
+          'SELECT COUNT(*) FROM official_problems WHERE problem_name LIKE "';
+        sql += "%" + titleKeyword + '%" AND problem_source LIKE "';
+        sql += "%" + sourceKeyword + '%" ORDER BY ';
+        sql += real_order;
+        sql += increase ? " ASC " : " DESC ";
+        let tmp = await querySql(sql);
+        const count = tmp[0]["COUNT(*)"];
         return {
           success: true,
-          message: "用户列表查询成功",
-          count: probs.length,
+          message: "题目查询成功",
+          count: count,
           result: probs.map((prob) => ({
             id: prob.problem_id,
             title: prob.problem_name,
@@ -189,18 +252,19 @@ function insert_official_problem(
   rangeAndHint,
   source
 ) {
+  const real_type = ["traditional", "interactive", "answer"][type];
   let sql =
     "INSERT INTO official_problems(problem_id, problem_name, \
 		       problem_english_name, problem_type, problem_time_limit, \
 			   problem_memory_limit, problem_background, problem_description, \
 			   problem_input_format, problem_output_format, \
-			   problem_range_and_hint, problem_source, problem_submit_time) \
+			   problem_data_range_and_hint, problem_source, problem_submit_time) \
 			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   let sqlParams = [
     id,
     title,
     titleEn,
-    type,
+    real_type,
     timeLimit,
     memoryLimit,
     background,
@@ -214,28 +278,66 @@ function insert_official_problem(
   return insert_one_decorator(sql, sqlParams, "题目");
 }
 
-// TODO: 参数名不能使用?，需要修改
+function insert_workshop_problem(
+  id,
+  title,
+  titleEn,
+  type,
+  timeLimit,
+  memoryLimit,
+  background,
+  statement,
+  inputStatement,
+  outputStatement,
+  rangeAndHint,
+  source
+) {
+  const real_type = ["traditional", "interactive", "answer"][type];
+  let sql =
+    "INSERT INTO workshop_problems(problem_id, problem_name, \
+		       problem_english_name, problem_type, problem_time_limit, \
+			   problem_memory_limit, problem_background, problem_description, \
+			   problem_input_format, problem_output_format, \
+			   problem_data_range_and_hint, problem_source, problem_submit_time) \
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  let sqlParams = [
+    id,
+    title,
+    titleEn,
+    real_type,
+    timeLimit,
+    memoryLimit,
+    background,
+    statement,
+    inputStatement,
+    outputStatement,
+    rangeAndHint,
+    source,
+    new Date().getTime(),
+  ];
+  return insert_one_decorator(sql, sqlParams, "创意工坊题目");
+}
+
 function update_official_problem(id, param, value) {
-  let sql = "UPDATE official_problems SET ? = ? WHERE problem_id = ?;";
-  let sqlParams = [param, value, id];
+  let sql = `UPDATE official_problems SET ${param} = ? WHERE problem_id = ?;`;
+  let sqlParams = [value, id];
   return update_decorator(sql, sqlParams, "官方题目");
 }
 
-// TODO: 参数名不能使用?，需要修改
 function update_workshop_problem(id, param, value) {
-  let sql = "UPDATE workshop_problems SET ? = ? WHERE problem_id = ?;";
-  let sqlParams = [param, value, id];
+  let sql = `UPDATE workshop_problems SET ${param} = ? WHERE problem_id = ?;`;
+  let sqlParams = [value, id];
   return update_decorator(sql, sqlParams, "工坊题目");
 }
 
 function delete_official_problem(id) {
-  let sql = "DELECT FROM official_problems WHERE problem_id = ?;";
+  let sql = "DELETE FROM official_problems WHERE problem_id = ?;";
   let sqlParams = [id];
   return delete_decorator(sql, sqlParams, "官方题目");
 }
 
 function delete_workshop_problem(id) {
-  let sql = "DELECT FROM workshop_problems WHERE problem_id = ?;";
+  let sql = "DELETE FROM workshop_problems WHERE problem_id = ?;";
   let sqlParams = [id];
   return delete_decorator(sql, sqlParams, "工坊题目");
 }
@@ -322,6 +424,8 @@ module.exports = {
    * 　　  } 的 Promise 对象
    */
   insert_official_problem,
+
+  insert_workshop_problem,
   /* 参数: id,
    * 　　  param,
    * 　　  value

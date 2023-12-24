@@ -3,6 +3,7 @@
  * 作者: niehy21
  * 最后更新时间: 2023/12/14
  */
+const { modifySql } = require("../utils");
 const {
   select_one_decorator,
   insert_one_decorator,
@@ -46,12 +47,11 @@ function insert_workshop_rating(problem_id, user_id, rating) {
   return insert_rating(problem_id, user_id, rating, 0);
 }
 
-// TODO: 此处遗漏了problem_is_official参数，请补充；此外，需要判断可能之前并没有评分，但仍然调用这个函数，这时就什么也不做
-function delete_rating(problem_id, user_id) {
+function delete_rating(problem_id, user_id, problem_is_official) {
   let sql =
     "DELECT FROM ratings WHERE problem_id \
-               = ? AND rating_submit_user_id = ?;";
-  let sqlParams = [problem_id, user_id];
+               = ? AND rating_submit_user_id = ? AND problem_is_official = ?;";
+  let sqlParams = [problem_id, user_id, problem_is_official ? 1 : 0];
   return delete_decorator(sql, sqlParams, "评分");
 }
 
@@ -72,7 +72,10 @@ function delete_workshop_rating(problem_id, user_id) {
  * @param {*} problem_is_official
  */
 function delete_rating_by_pid(problem_id, problem_is_official) {
-  // TODO
+  let sql =
+    "DELETE FROM ratings WHERE problem_id = ? AND problem_is_official = ?;";
+  let sqlParams = [problem_id, problem_is_official ? 1 : 0];
+  return delete_decorator(sql, sqlParams, "难度");
 }
 
 /**
@@ -86,8 +89,16 @@ function delete_rating_by_pid(problem_id, problem_is_official) {
  *
  * 返回的result属性是结果，有一个recommend属性，为true表示推荐过，为false表示没有推荐过
  */
-function select_recommendation_by_pid_and_uid(problem_id, user_id) {
-  // TODO
+async function select_recommendation_by_pid_and_uid(problem_id, user_id) {
+  try {
+    let sql =
+      "SELECT COUNT(*) FROM recommendations WHERE problem_id = ? AND recommendation_submit_user_id = ?;";
+    let sqlParams = [problem_id, user_id];
+    const tmp = await modifySql(sql, sqlParams);
+    return { success: true, result: { recommend: tmp[0]["COUNT(*)"] > 0 } };
+  } catch (e) {
+    return { success: false, message: "查询用户推荐出错" };
+  }
 }
 
 /**
@@ -98,8 +109,20 @@ function select_recommendation_by_pid_and_uid(problem_id, user_id) {
  * @param {*} problem_id
  * @param {*} user_id
  */
-function insert_recommendation_by_pid_and_uid(problem_id, user_id) {
-  // TODO
+async function insert_recommendation_by_pid_and_uid(problem_id, user_id) {
+  try {
+    let tmp = await select_recommendation_by_pid_and_uid(problem_id, user_id);
+    if (tmp.success == false) return tmp;
+    if (tmp.result.recommend == false) {
+      let sql =
+        "INSERT INTO recommendations(recommendation_submit_user_id, problem_id) VALUES(?, ?);";
+      let sqlParams = [user_id, problem_id];
+      await modifySql(sql, sqlParams);
+      return { success: true };
+    }
+  } catch (e) {
+    return { success: false, message: "插入用户推荐出错" };
+  }
 }
 
 /**
@@ -110,8 +133,16 @@ function insert_recommendation_by_pid_and_uid(problem_id, user_id) {
  * @param {*} problem_id
  * @param {*} user_id
  */
-function delete_recommendation_by_pid_and_uid(problem_id, user_id) {
-  // TODO
+async function delete_recommendation_by_pid_and_uid(problem_id, user_id) {
+  try {
+    let sql =
+      "DELETE FROM recommendations WHERE recommendation_submit_user_id = ? AND problem_id = ?;";
+    let sqlParams = [user_id, problem_id];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除用户推荐出错" };
+  }
 }
 
 /**
@@ -121,8 +152,15 @@ function delete_recommendation_by_pid_and_uid(problem_id, user_id) {
  *
  * @param {*} problem_id
  */
-function delete_recommendation_by_pid(problem_id) {
-  // TODO
+async function delete_recommendation_by_pid(problem_id) {
+  try {
+    let sql = "DELETE FROM recommendations WHERE problem_id = ?;";
+    let sqlParams = [problem_id];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除推荐出错" };
+  }
 }
 
 /**
@@ -134,8 +172,19 @@ function delete_recommendation_by_pid(problem_id) {
  * @param {*} problem_is_official 是否是官方题库的题目
  * @param {*} tags 一个数组，数组中的每个元素是一个字符串，表示一个标签，例如["动态规划","贪心","数学"]
  */
-function insert_tags_by_id(id, problem_is_official, tags) {
-  // TODO
+async function insert_tags_by_id(id, problem_is_official, tags) {
+  try {
+    let sql =
+      "INSERT INTO tags(tag_name, problem_id, problem_is_official) VALUES(?, ?, ?);";
+    let sqlParams = ["", id, problem_is_official ? 1 : 0];
+    for (let tag of tags) {
+      sqlParams[0] = tag;
+      await modifySql(sql, sqlParams);
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "添加标签出错" };
+  }
 }
 
 /**
@@ -146,8 +195,16 @@ function insert_tags_by_id(id, problem_is_official, tags) {
  * @param {*} id 题目id
  * @param {*} problem_is_official 是否是官方题库的题目
  */
-function delete_tags_by_id(id, problem_is_official) {
-  // TODO
+async function delete_tags_by_id(id, problem_is_official) {
+  try {
+    let sql =
+      "DELETE FROM tags WHERE problem_id = ? AND problem_is_official = ?;";
+    let sqlParams = [id, problem_is_official ? 1 : 0];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "删除标签出错" };
+  }
 }
 
 module.exports = {
