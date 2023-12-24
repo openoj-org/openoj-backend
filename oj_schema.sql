@@ -11,7 +11,7 @@
  Target Server Version : 80035
  File Encoding         : 65001
 
- Date: 23/12/2023 18:04:03
+ Date: 24/12/2023 16:48:57
 */
 
 SET NAMES utf8mb4;
@@ -151,7 +151,7 @@ CREATE TABLE `official_problems`  (
   `problem_spj_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   PRIMARY KEY (`problem_id`) USING BTREE,
   UNIQUE INDEX `problem_id`(`problem_id` ASC) USING BTREE,
-  UNIQUE INDEX `problem_english_name`(`problem_english_name` ASC) USING BTREE
+  FULLTEXT INDEX `problem_name`(`problem_name`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
@@ -277,7 +277,7 @@ CREATE TABLE `users`  (
   PRIMARY KEY (`user_id`) USING BTREE,
   UNIQUE INDEX `user_name`(`user_name` ASC) USING BTREE,
   UNIQUE INDEX `user_email`(`user_email` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 68 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 119 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for workshop_problems
@@ -303,7 +303,71 @@ CREATE TABLE `workshop_problems`  (
   `problem_submit_time` bigint NULL DEFAULT 0 COMMENT '问题提交时间',
   `problem_submit_number` int NULL DEFAULT 0 COMMENT '问题提交总次数',
   `problem_pass_number` int NULL DEFAULT 0 COMMENT '问题通过总次数',
-  PRIMARY KEY (`problem_id`) USING BTREE
+  PRIMARY KEY (`problem_id`) USING BTREE,
+  UNIQUE INDEX `problem_id`(`problem_id` ASC) USING BTREE,
+  FULLTEXT INDEX `problem_name`(`problem_name`),
+  FULLTEXT INDEX `problem_source`(`problem_source`)
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Triggers structure for table ratings
+-- ----------------------------
+DROP TRIGGER IF EXISTS `insert_rating`;
+delimiter ;;
+CREATE TRIGGER `insert_rating` AFTER INSERT ON `ratings` FOR EACH ROW BEGIN
+    IF NEW.problem_is_official = 1 THEN
+        UPDATE official_problems
+        SET rating_sum = rating_sum + NEW.rating_value,
+            rating_num = rating_num + 1
+        WHERE problem_id = NEW.problem_id;
+    ELSE
+        UPDATE workshop_problems
+        SET rating_sum = rating_sum + NEW.rating_value,
+            rating_num = rating_num + 1
+        WHERE problem_id = NEW.problem_id;
+    END IF;
+END
+;;
+delimiter ;
+
+-- ----------------------------
+-- Triggers structure for table ratings
+-- ----------------------------
+DROP TRIGGER IF EXISTS `update_rating`;
+delimiter ;;
+CREATE TRIGGER `update_rating` AFTER UPDATE ON `ratings` FOR EACH ROW BEGIN
+    IF OLD.problem_is_official = 1 THEN
+        UPDATE official_problems
+        SET rating_sum = rating_sum - OLD.rating_value + NEW.rating_value
+        WHERE problem_id = NEW.problem_id;
+    ELSE
+        UPDATE workshop_problems
+        SET rating_sum = rating_sum - OLD.rating_value + NEW.rating_value
+        WHERE problem_id = NEW.problem_id;
+    END IF;
+END
+;;
+delimiter ;
+
+-- ----------------------------
+-- Triggers structure for table ratings
+-- ----------------------------
+DROP TRIGGER IF EXISTS `delete_rating`;
+delimiter ;;
+CREATE TRIGGER `delete_rating` AFTER DELETE ON `ratings` FOR EACH ROW BEGIN
+    IF OLD.problem_is_official = 1 THEN
+        UPDATE official_problems
+        SET rating_sum = rating_sum - OLD.rating_value,
+				    rating_num = rating_num - 1
+        WHERE problem_id = OLD.problem_id;
+    ELSE
+        UPDATE workshop_problems
+        SET rating_sum = rating_sum - OLD.rating_value,
+				    rating_num = rating_num - 1
+        WHERE problem_id = OLD.problem_id;
+    END IF;
+END
+;;
+delimiter ;
 
 SET FOREIGN_KEY_CHECKS = 1;

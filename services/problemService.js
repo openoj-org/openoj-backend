@@ -1131,7 +1131,7 @@ function problem_change_meta(req, res, next) {
       } else {
         return {
           success: false,
-          message: auth.message,
+          message: auth.message
         };
       }
     },
@@ -1160,7 +1160,7 @@ function problem_create(req, res, next) {
         inputStatement,
         outputStatement,
         rangeAndHint,
-        source,
+        source
       } = req.body;
 
       // 检验 cookie 有效性
