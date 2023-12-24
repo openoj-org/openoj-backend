@@ -224,16 +224,53 @@ function insert_official_problem(
   return insert_one_decorator(sql, sqlParams, "题目");
 }
 
-// TODO: 参数名不能使用?，需要修改
+function insert_workshop_problem(
+  id,
+  title,
+  titleEn,
+  type,
+  timeLimit,
+  memoryLimit,
+  background,
+  statement,
+  inputStatement,
+  outputStatement,
+  rangeAndHint,
+  source
+) {
+  let sql =
+    "INSERT INTO workshop_problems(problem_id, problem_name, \
+		       problem_english_name, problem_type, problem_time_limit, \
+			   problem_memory_limit, problem_background, problem_description, \
+			   problem_input_format, problem_output_format, \
+			   problem_range_and_hint, problem_source, problem_submit_time) \
+			   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  let sqlParams = [
+    id,
+    title,
+    titleEn,
+    type,
+    timeLimit,
+    memoryLimit,
+    background,
+    statement,
+    inputStatement,
+    outputStatement,
+    rangeAndHint,
+    source,
+    new Date().getTime(),
+  ];
+  return insert_one_decorator(sql, sqlParams, "创意工坊题目");
+}
+
 function update_official_problem(id, param, value) {
-  let sql = "UPDATE official_problems SET ? = ? WHERE problem_id = ?;";
+  let sql = `UPDATE official_problems SET ${param} = ? WHERE problem_id = ?;`;
   let sqlParams = [param, value, id];
   return update_decorator(sql, sqlParams, "官方题目");
 }
 
-// TODO: 参数名不能使用?，需要修改
 function update_workshop_problem(id, param, value) {
-  let sql = "UPDATE workshop_problems SET ? = ? WHERE problem_id = ?;";
+  let sql = `UPDATE workshop_problems SET ${param} = ? WHERE problem_id = ?;`;
   let sqlParams = [param, value, id];
   return update_decorator(sql, sqlParams, "工坊题目");
 }
@@ -332,6 +369,8 @@ module.exports = {
    * 　　  } 的 Promise 对象
    */
   insert_official_problem,
+
+  insert_workshop_problem,
   /* 参数: id,
    * 　　  param,
    * 　　  value

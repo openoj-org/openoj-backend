@@ -12,6 +12,9 @@ const {
   update_official_problem,
   insert_official_problem,
   select_last_evaluation_score_by_pid_and_uid,
+  delete_workshop_problem,
+  update_workshop_problem,
+  insert_workshop_problem,
 } = require("../CURDs/problemCURD");
 const {
   insert_subtask,
@@ -38,6 +41,7 @@ const {
   delete_official_data_by_problem_id,
   insert_official_data,
   insert_data,
+  delete_workshop_data_by_problem_id,
 } = require("../CURDs/dataCURD");
 const fs = require("fs");
 const fsExt = require("fs-extra");
@@ -53,12 +57,16 @@ const {
 const {
   delete_rating_by_pid,
   delete_tags_by_id,
+  delete_recommendation_by_pid,
 } = require("../CURDs/ratingCURD");
 const {
   select_posts_by_problem_id,
   delete_reply_by_post_id,
   delete_post_by_problem_id,
 } = require("../CURDs/forumCURD");
+
+// 官方题库
+const TYPE = 0;
 
 // 检查器函数, func 为 CURD 函数, isDefault 表示是否使用默认 JSON 解析
 function validateFunction(req, res, next, func, isDefault) {
@@ -107,57 +115,76 @@ function extractToTemp(file) {
 
 // 检验上传配置的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
 function validate_problem_zip_extract(extractPath) {
-  // 文件名列表
-  const dataFiles = fs.readdirSync(extractPath);
+  try {
+    // 文件名列表
+    const dataFiles = fs.readdirSync(extractPath);
 
-  // 检查基础的文件列表
-  if (
-    !dataFiles.includes("description.md") ||
-    !dataFiles.includes("inputStatement.md") ||
-    !dataFiles.includes("outputStatement.md") ||
-    !dataFiles.includes("rangeAndHint.md") ||
-    !dataFiles.includes("summary.txt")
-  ) {
-    return { success: false, message: "文件缺失" };
-  }
-
-  // 读取 summary.txt
-  fs.readFile(extractPath + "/config.txt", "utf8", (err, data) => {
-    if (err) {
-      return { success: false, message: "读取文件失败" };
+    // 检查基础的文件列表
+    if (
+      !dataFiles.includes("description.md") ||
+      !dataFiles.includes("inputStatement.md") ||
+      !dataFiles.includes("outputStatement.md") ||
+      !dataFiles.includes("rangeAndHint.md") ||
+      !dataFiles.includes("summary.txt")
+    ) {
+      return { success: false, message: "文件缺失" };
     }
 
-    // 按行分隔
-    const lines = data.split("\n");
-    if (lines.length < 5 || lines.length > 6) {
-      return { success: false, message: "文件格式有误" };
-    }
+    // 读取 summary.txt
+    fs.readFile(extractPath + "/config.txt", "utf8", (err, data) => {
+      if (err) {
+        return { success: false, message: "读取文件失败" };
+      }
 
-    /*题目名称。
+      // 按行分隔
+      const lines = data.split("\n");
+      if (lines.length < 5 || lines.length > 6) {
+        return { success: false, message: "文件格式有误" };
+      }
+
+      /*题目名称。
 第二行填写题目英文名称。
 第三行填写题目类型，是一个非负整数：0 （代表传统型），1（代表...）。
 第四行填写时间限制，是一个正整数，单位：毫秒。
 第五行填写空间限制，是一个正整数，单位：MB。
 第六行填写题目来源，如果没有则可以只写前五行。 */
-    let obj = {};
-    obj.title = lines[0];
-    obj.titleEn = lines[1];
-    if ((obj.type = Number(lines[2])) != 0) {
-      return { success: false, message: "文件格式有误" };
-    }
-    obj.timeLimit = Number(lines[3]);
-    obj.memoryLimit = Number(lines[4]);
-    if (lines.length == 6) {
-      obj.source = lines[5];
-    } else {
-      obj.source = "";
-    }
-  });
-  return {
-    success: true,
-    message: "",
-    result: obj,
-  };
+      let obj = {};
+      obj.title = lines[0];
+      obj.titleEn = lines[1];
+      if ((obj.type = Number(lines[2])) != 0) {
+        return { success: false, message: "文件格式有误" };
+      }
+      obj.timeLimit = Number(lines[3]);
+      obj.memoryLimit = Number(lines[4]);
+      if (lines.length == 6) {
+        obj.source = lines[5];
+      } else {
+        obj.source = "";
+      }
+    });
+
+    const path = extractPath;
+    // 读取描述信息
+    if (fs.existsSync(path + "/background.md")) {
+      obj.background = fs.readFileSync(path + "/background.md").toString();
+    } else obj.background = null;
+    obj.statement = fs.readFileSync(path + "/description.md").toString();
+    obj.inputStatement = fs
+      .readFileSync(path + "/inputStatement.md")
+      .toString();
+    obj.outputStatement = fs
+      .readFileSync(path + "/outputStatement.md")
+      .toString();
+    obj.rangeAndHint = fs.readFileSync(path + "/rangeAndHint.md").toString();
+
+    return {
+      success: true,
+      message: "",
+      result: obj,
+    };
+  } catch (e) {
+    return { success: false, message: "文件操作出错" };
+  }
 }
 
 // 检验上传数据的 zip 文件 (解压至 temp 文件夹后的目录) 是否符合格式要求
@@ -625,15 +652,15 @@ function problem_info(req, res, next) {
 }
 
 // 实际用于删除题目数据的函数
-async function real_problem_delete_data(id) {
+async function real_problem_delete_data(id, type) {
   // 获取和本题有关的所有评测的id
-  let tmp = await select_evaluations_by_problem_id(id, true);
+  let tmp = await select_evaluations_by_problem_id(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
   const evaluations = tmp.result;
   // 获取是否有spj和子任务
-  tmp = await select_evaluation_configs_by_id(id, true);
+  tmp = await select_evaluation_configs_by_id(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
@@ -643,7 +670,10 @@ async function real_problem_delete_data(id) {
     fs.rmSync(SPJFilename);
   }
   // 删除所有数据点
-  tmp = await delete_official_data_by_problem_id(id);
+  tmp =
+    type == 0
+      ? await delete_official_data_by_problem_id(id)
+      : await delete_workshop_data_by_problem_id(id);
   if (tmp.success == false) {
     return tmp;
   }
@@ -656,7 +686,7 @@ async function real_problem_delete_data(id) {
   }
   if (isSubtaskUsed) {
     // 如果采用subtask，同时删除子任务及其评测记录
-    tmp = await delete_subtask_by_problem_id(id, true);
+    tmp = await delete_subtask_by_problem_id(id, type == 0);
     if (tmp.success == false) {
       return tmp;
     }
@@ -668,19 +698,33 @@ async function real_problem_delete_data(id) {
       }
     }
   }
+  // 成功全部删除
+  return { success: true };
+}
+
+// 实际用于删除题目的函数，删除和一道题目所有相关的内容，功能包括辅助修改题目执行删除+插入题目的操作
+async function real_problem_delete(id, type) {
+  let tmp = real_problem_delete_data(id, type);
+  if (tmp.success == false) return tmp;
   // 删除所有评分信息
-  tmp = await delete_rating_by_pid(id, true);
+  tmp = await delete_rating_by_pid(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
-  // 由于官方题库没有recommendation，跳过这一段的删除
+  // 如果是创意工坊，还需要删除recommendation
+  if (type == 1) {
+    tmp = await delete_recommendation_by_pid(id);
+    if (tmp.success == false) {
+      return tmp;
+    }
+  }
   // 删除所有标签信息
-  tmp = await delete_tags_by_id(id, true);
+  tmp = await delete_tags_by_id(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
   //获取所有题目相关的帖子
-  tmp = await select_posts_by_problem_id(id, true);
+  tmp = await select_posts_by_problem_id(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
@@ -693,19 +737,14 @@ async function real_problem_delete_data(id) {
     }
   }
   // 删除所有相关的帖子
-  tmp = await delete_post_by_problem_id(id, true);
+  tmp = await delete_post_by_problem_id(id, type == 0);
   if (tmp.success == false) {
     return tmp;
   }
-  // 成功全部删除
-  return { success: true };
-}
-
-// 实际用于删除题目的函数，删除和一道题目所有相关的内容，功能包括辅助修改题目执行删除+插入题目的操作
-async function real_problem_delete(id) {
-  let tmp = real_problem_delete_data(id);
-  if (tmp.success == false) return tmp;
-  tmp = await delete_official_problem(id);
+  tmp =
+    type == 0
+      ? await delete_official_problem(id)
+      : await delete_workshop_problem(id);
   if (tmp.success == false) return tmp;
   return { success: true };
 }
@@ -727,10 +766,358 @@ function problem_delete(req, res, next) {
       }
 
       // 调用真正的删除
-      return await real_problem_delete(id);
+      return await real_problem_delete(id, TYPE);
     },
     true
   );
+}
+
+// 实际用于插入题目元数据的函数
+async function real_problem_insert_problem(id, problemType, info) {
+  let tmp =
+    problemType == 0
+      ? await insert_official_problem(
+          id,
+          info.title,
+          info.titleEn,
+          info.type,
+          info.timeLimit,
+          info.memoryLimit,
+          info.background,
+          info.statement,
+          info.inputStatement,
+          info.outputStatement,
+          info.rangeAndHint,
+          info.source
+        )
+      : await insert_workshop_problem(
+          id,
+          info.title,
+          info.titleEn,
+          info.type,
+          info.timeLimit,
+          info.memoryLimit,
+          info.background,
+          info.statement,
+          info.inputStatement,
+          info.outputStatement,
+          info.rangeAndHint,
+          info.source
+        );
+  if (!tmp.success) return tmp;
+  return { success: true };
+}
+
+// 实际用于更新题目元数据的函数
+async function real_problem_update_problem(id, problemType, info) {
+  let tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_name", info.title)
+      : await update_workshop_problem(id, "problem_name", info.title);
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_english_name", info.titleEn)
+      : await update_workshop_problem(id, "problem_english_name", info.titleEn);
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_type", info.type)
+      : await update_workshop_problem(id, "problem_type", info.type);
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_time_limit", info.timeLimit)
+      : await update_workshop_problem(id, "problem_time_limit", info.timeLimit);
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(
+          id,
+          "problem_memory_limit",
+          info.memoryLimit
+        )
+      : await update_workshop_problem(
+          id,
+          "problem_memory_limit",
+          info.memoryLimit
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_background", info.background)
+      : await update_workshop_problem(
+          id,
+          "problem_background",
+          info.background
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_description", info.statement)
+      : await update_workshop_problem(
+          id,
+          "problem_description",
+          info.statement
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(
+          id,
+          "problem_input_format",
+          info.inputStatement
+        )
+      : await update_workshop_problem(
+          id,
+          "problem_input_format",
+          info.inputStatement
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(
+          id,
+          "problem_output_format",
+          info.outputStatement
+        )
+      : await update_workshop_problem(
+          id,
+          "problem_output_format",
+          info.outputStatement
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(
+          id,
+          "problem_data_range_and_hint",
+          info.rangeAndHint
+        )
+      : await update_workshop_problem(
+          id,
+          "problem_data_range_and_hint",
+          info.rangeAndHint
+        );
+  if (tmp.success == false) return tmp;
+  tmp =
+    problemType == 0
+      ? await update_official_problem(id, "problem_source", info.source)
+      : await update_workshop_problem(id, "problem_source", info.source);
+  return tmp;
+}
+
+// 实际用于插入题目数据的函数，需要题目的元信息存在
+async function real_problem_insert_data(id, problemType, info, path) {
+  try {
+    // 更新spj信息
+    let tmp =
+      problemType == 0
+        ? await update_official_problem(id, "problem_use_spj", info.isSPJUsed)
+        : await update_workshop_problem(id, "problem_use_spj", info.isSPJUsed);
+    if (!tmp.success) return tmp;
+    if (info.isSPJUsed) {
+      // 如果使用spj，更新spj路径
+      tmp =
+        problemType == 0
+          ? await update_official_problem(
+              id,
+              "problem_spj_filename",
+              path + "/" + info.SPJFilename
+            )
+          : await update_workshop_problem(
+              id,
+              "problem_spj_filename",
+              path + "/" + info.SPJFilename
+            );
+      if (!tmp.success) return tmp;
+    }
+    // 更新是否使用subtask
+    tmp =
+      problemType == 0
+        ? await update_official_problem(
+            id,
+            "problem_use_subtask",
+            info.isSubtaskUsed
+          )
+        : await update_workshop_problem(
+            id,
+            "problem_use_subtask",
+            info.isSubtaskUsed
+          );
+    if (!info.isSubtaskUsed) {
+      // 如果不使用子任务
+      const datas = info.cases;
+      for (let i = 1; i <= datas.length; i++) {
+        const data = datas[i - 1];
+        // 初始类型设为不是sample
+        let type = "non_sample";
+        if (data.type == 0) {
+          // 如果该项数据被设置为sample
+          const inputLength = fs
+            .readFileSync(path + "/" + data.input)
+            .toString().length;
+          const outputLength = fs
+            .readFileSync(path + "/" + data.output)
+            .toString().length;
+          // 过长则设为隐藏样例
+          if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+          else type = "visible_sample";
+        }
+        tmp = await insert_data(
+          id,
+          0,
+          problemType == 0,
+          type,
+          0,
+          i,
+          path + "/" + data.input,
+          path + "/" + data.output,
+          data.score
+        );
+        if (!tmp.success) return tmp;
+      }
+    } else {
+      //使用子任务
+      const subtasks = info.subtasks;
+      for (let i = 1; i <= subtasks.length; i++) {
+        const subtask = subtasks[i - 1];
+        let tmp = insert_subtask(id, problemType == 0, i, subtask.score);
+        if (!tmp.success) return tmp;
+        const subtaskId = tmp.id;
+        for (let j = 1; j <= subtask.cases; j++) {
+          const data = subtask.cases[j - 1];
+          // 初始类型设为不是sample
+          let type = "non_sample";
+          if (data.type == 0) {
+            // 如果该项数据被设置为sample
+            const inputLength = fs
+              .readFileSync(path + "/" + data.input)
+              .toString().length;
+            const outputLength = fs
+              .readFileSync(path + "/" + data.output)
+              .toString().length;
+            // 过长则设为隐藏样例
+            if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
+            else type = "visible_sample";
+          }
+          tmp = await insert_data(
+            id,
+            subtaskId,
+            problemType == 0,
+            type,
+            0,
+            j,
+            path + "/" + data.input,
+            path + "/" + data.output,
+            0
+          );
+          if (!tmp.success) return tmp;
+        }
+      }
+    }
+  } catch (e) {
+    return { success: false, message: "文件操作出错" };
+  }
+  return { success: true };
+}
+
+// 完整的插入题目函数，path为纯数据文件最终路径
+async function real_problem_insert(id, problemType, info, path) {
+  let tmp = await real_problem_insert_problem(id, problemType, info.info);
+  if (tmp.success == false) return tmp;
+  return await real_problem_insert_data(id, problemType, info, path);
+}
+
+// 真正的解压、存储数据文件的函数，返回值：success属性表示是否成功，info属性表示数据信息，path属性表示数据文件存储路径
+async function real_extract_data_file(id, problemType, file) {
+  try {
+    // 将文件解压至 temp 下
+    let extract_info = extractToTemp(file);
+    if (!extract_info.success) {
+      return extract_info;
+    }
+    const extractDir = extract_info.dir;
+    const staticDir =
+      `./static/${
+        problemType == 0 ? "official_problem" : "workshop_problem"
+      }/` +
+      id +
+      "/data";
+    const info = validate_data_zip_extract(extractDir);
+    // 检查 .zip 文件的目录
+    if (!info.success) {
+      fs.rmdirSync(extractDir);
+      return {
+        success: false,
+        message: ".zip 文件目录有误",
+      };
+    }
+    // 若 static 中文件夹不存在则创建
+    if (!fs.existsSync(staticDir)) {
+      fs.mkdirSync(staticDir, { recursive: true });
+    }
+    // 将正确的题目数据文件移至 static 文件夹下
+    fsExt.copySync(extractDir, staticDir, { overwrite: true });
+    // 将 temp 下的临时文件删除
+    fsExt.removeSync(extractDir);
+    return { success: true, info: info, path: staticDir };
+  } catch (e) {
+    return { success: false, message: "文件操作出错" };
+  }
+}
+
+// 真正的解压、存储完整文件的函数，返回值：success属性表示是否成功，info属性表示全部信息，path属性表示数据文件存储路径
+async function real_extract_file(id, problemType, file) {
+  try {
+    // 将文件解压至 temp 下
+    let extract_info = extractToTemp(file);
+    if (!extract_info.success) {
+      return extract_info;
+    }
+
+    const extractDir = extract_info.dir;
+    const staticDir =
+      `./static/${
+        problemType == 0 ? "official_problem" : "workshop_problem"
+      }/` +
+      id +
+      "/data";
+    const info = validate_zip_extract(extractDir);
+    // 检查 .zip 文件的目录
+    if (!info.success) {
+      fs.rmdirSync(extractDir);
+      return {
+        success: false,
+        message: ".zip 文件目录有误",
+      };
+    }
+    // 若 static 中文件夹不存在则创建
+    if (!fs.existsSync(staticDir)) {
+      fs.mkdirSync(staticDir, { recursive: true });
+    }
+    // 将正确的题目数据文件移至 static 文件夹下
+    fsExt.copySync(extractDir + "/data", staticDir, { overwrite: true });
+    // 将 temp 下的临时文件删除
+    fsExt.removeSync(extractDir);
+    return { success: true, info: info, path: staticDir };
+  } catch (e) {
+    return { success: false, message: "文件操作出错" };
+  }
+}
+
+// 真正的用文件插入数据的函数
+async function real_problem_insert_data_file(id, problemType, file) {
+  let tmp = await real_extract_data_file(id, problemType, file);
+  if (tmp.success == false) return tmp;
+  return await real_problem_insert_data(id, problemType, tmp.info, tmp.path);
+}
+
+// 真正的用文件插入题目的函数
+async function real_problem_insert_file(id, problemType, file) {
+  let tmp = await real_extract_file(id, problemType, file);
+  if (tmp.success == false) return tmp;
+  return await real_problem_insert(id, problemType, tmp.info, tmp.path);
 }
 
 // 用文件修改题目
@@ -747,641 +1134,69 @@ async function problem_change_by_file(req, res, next) {
     res.json(tmp);
     return;
   }
-  // 直接在删除后调用创建题目的过程
-  problem_create_by_file(req, res, next);
+  res.json(await real_problem_insert_file(id, TYPE, req.file));
   return;
 }
 
 // 用文件创建题目
-function problem_create_by_file(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      // 从请求体中解析参数
-      let { cookie, id } = req.body;
-
-      // 检验 cookie 有效性
-      let cookie_verified = await authenticate_cookie(cookie, 1);
-      if (!cookie_verified.success) {
-        return cookie_verified;
-      }
-
-      // 将文件解压至 temp 下
-      let extract_info = extractToTemp(req.file);
-      if (!extract_info.success) {
-        return extract_info;
-      }
-
-      const extractDir = extract_info.dir;
-      const fatherDir = "./static/offcial_problem/";
-      const staticDir = fatherDir + id;
-      try {
-        const info = validate_zip_extract(extractDir);
-        // 检查 .zip 文件的目录
-        if (!info.success) {
-          fs.rmdirSync(extractDir);
-          return {
-            success: false,
-            message: ".zip 文件目录有误",
-          };
-        }
-        // 先根据info信息，修改题目元数据
-        // todo: 处理更新题目数据后，题目的评测记录和数据可能对不上的问题
-        // 将题目描述部分的文件进行读取并加入数据库中
-        let background = null;
-        if (fs.existsSync(extractDir + "/question/background.md")) {
-          background = fs
-            .readFileSync(extractDir + "/question/background.md")
-            .toString();
-        }
-        const description = fs
-          .readFileSync(extractDir + "/question/description.md")
-          .toString();
-        const inputFormat = fs
-          .readFileSync(extractDir + "/question/inputFormat.md")
-          .toString();
-        const outputFormat = fs
-          .readFileSync(extractDir + "/question/outputFormat.md")
-          .toString();
-        const rangeAndHint = fs
-          .readFileSync(extractDir + "/question/rangeAndHint.md")
-          .toString();
-        // 若 static 中父文件夹不存在则创建
-        if (!fs.existsSync(fatherDir)) {
-          fs.mkdirSync(fatherDir);
-        }
-        // 若 static 中文件夹不存在则创建
-        if (!fs.existsSync(staticDir)) {
-          fs.mkdirSync(staticDir);
-        }
-        let tmp = await insert_official_problem(
-          id,
-          info.info.title,
-          info.info.titleEn,
-          info.info.type,
-          info.info.timeLimit,
-          info.info.memoryLimit,
-          background,
-          description,
-          inputFormat,
-          outputFormat,
-          rangeAndHint,
-          info.info.source
-        );
-        if (!tmp.success) return tmp;
-        // 将正确的题目数据文件移至 static 文件夹下
-        fsExt.copySync(extractDir + "/data", staticDir, { overwrite: true });
-        // 将 temp 下的临时文件删除
-        fsExt.removeSync(extractDir);
-        // 更新spj信息
-        tmp = await update_official_problem(
-          id,
-          "problem_use_spj",
-          info.isSPJUsed
-        );
-        if (!tmp.success) return tmp;
-        if (info.isSPJUsed) {
-          // 如果使用spj，更新spj路径
-          tmp = await update_official_problem(
-            id,
-            "problem_spj_filename",
-            info.SPJFilename
-          );
-          if (!tmp.success) return tmp;
-        }
-        // 更新是否使用subtask
-        tmp = await update_official_problem(
-          id,
-          "problem_use_subtask",
-          info.isSubtaskUsed
-        );
-        if (!info.isSubtaskUsed) {
-          // 如果不使用子任务
-          const datas = info.cases;
-          for (let i = 1; i <= datas.length; i++) {
-            const data = datas[i - 1];
-            // 初始类型设为不是sample
-            let type = "non_sample";
-            if (data.type == 0) {
-              // 如果该项数据被设置为sample
-              const inputLength = fs
-                .readFileSync(extractDir + "/data/" + data.input)
-                .toString().length;
-              const outputLength = fs
-                .readFileSync(extractDir + "/data/" + data.output)
-                .toString().length;
-              // 过长则设为隐藏样例
-              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
-              else type = "visible_sample";
-            }
-            tmp = await insert_data(
-              id,
-              0,
-              true,
-              type,
-              0,
-              i,
-              data.input,
-              data.output,
-              data.score
-            );
-            if (!tmp.success) return tmp;
-          }
-        } else {
-          //使用子任务
-          const subtasks = info.subtasks;
-          for (let i = 1; i <= subtasks.length; i++) {
-            const subtask = subtasks[i - 1];
-            let tmp = insert_subtask(id, true, i, subtask.score);
-            if (!tmp.success) return tmp;
-            const subtaskId = tmp.id;
-            for (let j = 1; j <= subtask.cases; j++) {
-              const data = subtask.cases[j - 1];
-              // 初始类型设为不是sample
-              let type = "non_sample";
-              if (data.type == 0) {
-                // 如果该项数据被设置为sample
-                const inputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.input)
-                  .toString().length;
-                const outputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.output)
-                  .toString().length;
-                // 过长则设为隐藏样例
-                if (inputLength > 50 || outputLength > 50)
-                  type = "hidden_sample";
-                else type = "visible_sample";
-              }
-              tmp = await insert_data(
-                id,
-                subtaskId,
-                true,
-                type,
-                0,
-                j,
-                data.input,
-                data.output,
-                0
-              );
-              if (!tmp.success) return tmp;
-            }
-          }
-        }
-      } catch (e) {
-        return {
-          success: false,
-          message: "修改题目信息失败",
-        };
-      }
-      return {
-        success: true,
-        message: "修改题目信息成功",
-      };
-    },
-    true
-  );
+async function problem_create_by_file(req, res, next) {
+  let { cookie, id } = req.body;
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 1);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
+  res.json(await real_problem_insert_file(id, TYPE, req.file));
+  return;
 }
 
 // 修改题目数据
-function problem_change_data(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      // 从请求体中解析参数
-      let { cookie, id } = req.body;
-
-      // 先对数据进行删除
-      let tmp = await real_problem_delete_data(id);
-      if (tmp.success == false) return tmp;
-
-      // 检验 cookie 有效性
-      let cookie_verified = await authenticate_cookie(cookie, 1);
-      if (!cookie_verified.success) {
-        return cookie_verified;
-      }
-
-      // 将文件解压至 temp 下
-      let extract_info = extractToTemp(req.file);
-      if (!extract_info.success) {
-        return extract_info;
-      }
-
-      const extractDir = extract_info.dir;
-      const fatherDir = "./static/offcial_problem/" + id;
-      const staticDir = fatherDir + "/data";
-      try {
-        const info = validate_data_zip_extract(extractDir);
-        // 检查 .zip 文件的目录
-        if (!info.success) {
-          fs.rmdirSync(extractDir);
-          return {
-            success: false,
-            message: ".zip 文件目录有误",
-          };
-        }
-        // 若 static 中父文件夹不存在则创建
-        if (!fs.existsSync(fatherDir)) {
-          fs.mkdirSync(fatherDir);
-        }
-        // 若 static 中文件夹不存在则创建
-        if (!fs.existsSync(staticDir)) {
-          fs.mkdirSync(staticDir);
-        }
-        // 将正确的题目数据文件移至 static 文件夹下
-        fsExt.copySync(extractDir, staticDir, { overwrite: true });
-        // 将 temp 下的临时文件删除
-        fsExt.removeSync(extractDir);
-        // 更新spj信息
-        tmp = await update_official_problem(
-          id,
-          "problem_use_spj",
-          info.isSPJUsed
-        );
-        if (!tmp.success) return tmp;
-        if (info.isSPJUsed) {
-          // 如果使用spj，更新spj路径
-          tmp = await update_official_problem(
-            id,
-            "problem_spj_filename",
-            info.SPJFilename
-          );
-          if (!tmp.success) return tmp;
-        }
-        // 更新是否使用subtask
-        tmp = await update_official_problem(
-          id,
-          "problem_use_subtask",
-          info.isSubtaskUsed
-        );
-        if (!info.isSubtaskUsed) {
-          // 如果不使用子任务
-          const datas = info.subtasks;
-          for (let i = 1; i <= datas.length; i++) {
-            const data = datas[i - 1];
-            // 初始类型设为不是sample
-            let type = "non_sample";
-            if (data.type == 0) {
-              // 如果该项数据被设置为sample
-              const inputLength = fs
-                .readFileSync(extractDir + "/data/" + data.input)
-                .toString().length;
-              const outputLength = fs
-                .readFileSync(extractDir + "/data/" + data.output)
-                .toString().length;
-              // 过长则设为隐藏样例
-              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
-              else type = "visible_sample";
-            }
-            tmp = await insert_data(
-              id,
-              0,
-              true,
-              type,
-              0,
-              i,
-              data.input,
-              data.output,
-              data.score
-            );
-            if (!tmp.success) return tmp;
-          }
-        } else {
-          //使用子任务
-          const subtasks = info.subtasks;
-          for (let i = 1; i <= subtasks.length; i++) {
-            const subtask = subtasks[i - 1];
-            let tmp = insert_subtask(id, true, i, subtask.score);
-            if (!tmp.success) return tmp;
-            const subtaskId = tmp.id;
-            for (let j = 1; j <= subtask.cases; j++) {
-              const data = subtask.cases[j - 1];
-              // 初始类型设为不是sample
-              let type = "non_sample";
-              if (data.type == 0) {
-                // 如果该项数据被设置为sample
-                const inputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.input)
-                  .toString().length;
-                const outputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.output)
-                  .toString().length;
-                // 过长则设为隐藏样例
-                if (inputLength > 50 || outputLength > 50)
-                  type = "hidden_sample";
-                else type = "visible_sample";
-              }
-              tmp = await insert_data(
-                id,
-                subtaskId,
-                true,
-                type,
-                0,
-                j,
-                data.input,
-                data.output,
-                0
-              );
-              if (!tmp.success) return tmp;
-            }
-          }
-        }
-      } catch (e) {
-        return {
-          success: false,
-          message: "修改题目数据失败",
-        };
-      }
-      return {
-        success: true,
-        message: "修改题目数据成功",
-      };
-    },
-    true
-  );
+async function problem_change_data(req, res, next) {
+  let { cookie, id } = req.body;
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 1);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
+  let tmp = real_problem_delete_data(id, TYPE);
+  if (!tmp.success) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await real_problem_insert_data_file(id, TYPE, req.file));
+  return;
 }
 
 // 修改题目元数据
-function problem_change_meta(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let {
-        cookie,
-        id,
-        title,
-        titleEn,
-        type,
-        timeLimit,
-        memoryLimit,
-        background,
-        statement,
-        inputStatement,
-        outputStatement,
-        rangeAndHint,
-        source,
-      } = req.body;
-      let auth = await authenticate_cookie(cookie, 1);
-      if (auth.success) {
-        let tmp = await update_official_problem(id, "problem_name", title);
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_english_name",
-          titleEn
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(id, "problem_type", type);
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_time_limit",
-          timeLimit
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_memory_limit",
-          memoryLimit
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_background",
-          background
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_description",
-          statement
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_input_format",
-          inputStatement
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_output_format",
-          outputStatement
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(
-          id,
-          "problem_data_range_and_hint",
-          rangeAndHint
-        );
-        if (tmp.success == false) return tmp;
-        tmp = await update_official_problem(id, "problem_source", source);
-        if (tmp.success == false) return tmp;
-        return { success: true };
-      } else {
-        return {
-          success: false,
-          message: auth.message,
-        };
-      }
-    },
-    false
-  );
+async function problem_change_meta(req, res, next) {
+  let { cookie, id } = req.body;
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 1);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
+  res.json(await real_problem_update_problem(id, TYPE, req.body));
+  return;
 }
 
 // 创建题目
-function problem_create(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      // 解析参数
-      let {
-        cookie,
-        id,
-        title,
-        titleEn,
-        type,
-        timeLimit,
-        memoryLimit,
-        background,
-        statement,
-        inputStatement,
-        outputStatement,
-        rangeAndHint,
-        source,
-      } = req.body;
-
-      // 检验 cookie 有效性
-      let cookie_verified = await authenticate_cookie(cookie, 1);
-      if (!cookie_verified.success) {
-        return cookie_verified;
-      }
-
-      let tmp = await insert_official_problem(
-        id,
-        title,
-        titleEn,
-        type,
-        timeLimit,
-        memoryLimit,
-        background,
-        statement,
-        inputStatement,
-        outputStatement,
-        rangeAndHint,
-        source
-      );
-      if (!tmp.success) return tmp;
-
-      // 先对数据进行删除
-      tmp = await real_problem_delete_data(id);
-      if (tmp.success == false) return tmp;
-
-      // 将文件解压至 temp 下
-      let extract_info = extractToTemp(req.file);
-      if (!extract_info.success) {
-        return extract_info;
-      }
-
-      const extractDir = extract_info.dir;
-      const fatherDir = "./static/offcial_problem/" + id;
-      const staticDir = fatherDir + "/data";
-      try {
-        const info = validate_data_zip_extract(extractDir);
-        // 检查 .zip 文件的目录
-        if (!info.success) {
-          fs.rmdirSync(extractDir);
-          return {
-            success: false,
-            message: ".zip 文件目录有误",
-          };
-        }
-        // 若 static 中父文件夹不存在则创建
-        if (!fs.existsSync(fatherDir)) {
-          fs.mkdirSync(fatherDir);
-        }
-        // 若 static 中文件夹不存在则创建
-        if (!fs.existsSync(staticDir)) {
-          fs.mkdirSync(staticDir);
-        }
-        // 将正确的题目数据文件移至 static 文件夹下
-        fsExt.copySync(extractDir, staticDir, { overwrite: true });
-        // 将 temp 下的临时文件删除
-        fsExt.removeSync(extractDir);
-        // 更新spj信息
-        tmp = await update_official_problem(
-          id,
-          "problem_use_spj",
-          info.isSPJUsed
-        );
-        if (!tmp.success) return tmp;
-        if (info.isSPJUsed) {
-          // 如果使用spj，更新spj路径
-          tmp = await update_official_problem(
-            id,
-            "problem_spj_filename",
-            info.SPJFilename
-          );
-          if (!tmp.success) return tmp;
-        }
-        // 更新是否使用subtask
-        tmp = await update_official_problem(
-          id,
-          "problem_use_subtask",
-          info.isSubtaskUsed
-        );
-        if (!info.isSubtaskUsed) {
-          // 如果不使用子任务
-          const datas = info.subtasks;
-          for (let i = 1; i <= datas.length; i++) {
-            const data = datas[i - 1];
-            // 初始类型设为不是sample
-            let type = "non_sample";
-            if (data.type == 0) {
-              // 如果该项数据被设置为sample
-              const inputLength = fs
-                .readFileSync(extractDir + "/data/" + data.input)
-                .toString().length;
-              const outputLength = fs
-                .readFileSync(extractDir + "/data/" + data.output)
-                .toString().length;
-              // 过长则设为隐藏样例
-              if (inputLength > 50 || outputLength > 50) type = "hidden_sample";
-              else type = "visible_sample";
-            }
-            tmp = await insert_data(
-              id,
-              0,
-              true,
-              type,
-              0,
-              i,
-              data.input,
-              data.output,
-              data.score
-            );
-            if (!tmp.success) return tmp;
-          }
-        } else {
-          //使用子任务
-          const subtasks = info.subtasks;
-          for (let i = 1; i <= subtasks.length; i++) {
-            const subtask = subtasks[i - 1];
-            let tmp = insert_subtask(id, true, i, subtask.score);
-            if (!tmp.success) return tmp;
-            const subtaskId = tmp.id;
-            for (let j = 1; j <= subtask.cases; j++) {
-              const data = subtask.cases[j - 1];
-              // 初始类型设为不是sample
-              let type = "non_sample";
-              if (data.type == 0) {
-                // 如果该项数据被设置为sample
-                const inputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.input)
-                  .toString().length;
-                const outputLength = fs
-                  .readFileSync(extractDir + "/data/" + data.output)
-                  .toString().length;
-                // 过长则设为隐藏样例
-                if (inputLength > 50 || outputLength > 50)
-                  type = "hidden_sample";
-                else type = "visible_sample";
-              }
-              tmp = await insert_data(
-                id,
-                subtaskId,
-                true,
-                type,
-                0,
-                j,
-                data.input,
-                data.output,
-                0
-              );
-              if (!tmp.success) return tmp;
-            }
-          }
-        }
-      } catch (e) {
-        return {
-          success: false,
-          message: "修改题目数据失败",
-        };
-      }
-      return {
-        success: true,
-        message: "修改题目数据成功",
-      };
-    },
-    true
-  );
+async function problem_create(req, res, next) {
+  let { cookie, id } = req.body;
+  // 检验 cookie 有效性
+  let cookie_verified = await authenticate_cookie(cookie, 1);
+  if (!cookie_verified.success) {
+    res.json(cookie_verified);
+    return;
+  }
+  let tmp = await real_problem_insert_problem(id, TYPE, req.body);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+  res.json(await real_problem_insert_data_file(id, TYPE, req.file));
 }
 
 function FileExist(filename, filepath) {
