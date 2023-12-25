@@ -18,8 +18,6 @@ async function insert_post(title, type, problem_id, user_id, content) {
   }
 }
 
-function update_post() {}
-
 async function select_post(id) {
   let sql =
     "SELECT post_title AS title, post_submit_user_id AS userId, post_time AS time, last_reply_time AS commentTime, post_is_question_discussion AS type, problem_id AS problemId, reply_number as count FROM posts WHERE post_id = ?;";
@@ -43,7 +41,7 @@ async function select_post_by_param_order(
 ) {
   try {
     switch (order) {
-      case "postTime":
+      case "time":
         order = "post_time";
         break;
       case "commentTime":
@@ -85,18 +83,28 @@ async function select_post_by_param_order(
       sqlParams.push(sourceId);
     }
     sql += `ORDER BY ${order} ${increase ? "ASC" : "DESC"};`;
-    const count = await modifySql(sql, sqlParams)[0]["COUNT(*)"];
+    const count = (await modifySql(sql, sqlParams))[0]["COUNT(*)"];
     return { success: true, result: result, count: count };
   } catch (e) {
     return { success: false, message: "读取帖子列表时出错" };
   }
 }
-function insert_reply() {}
+
+async function insert_reply(post_id, user_id, content) {
+  try {
+    let sql =
+      "INSERT INTO replies(post_id, reply_submit_user_id, reply_text) VALUES(?, ?, ?);";
+    let sqlParams = [post_id, user_id, content];
+    return { success: true, result: await modifySql(sql, sqlParams) };
+  } catch (e) {
+    return { success: true, message: "插入回复时出错" };
+  }
+}
 
 async function select_reply_by_param_order(post_id, start, end) {
   try {
     let sql =
-      "SELECT reply_submit_user_id AS userId, reply_text AS content, reply_time AS time FROM replies WHERE post_id = ? LIMIT ?, ?;";
+      "SELECT reply_submit_user_id AS userId, reply_text AS content, reply_time AS time FROM replies WHERE post_id = ? ORDER BY reply_time ASC LIMIT ?, ?;";
     let sqlParams = [post_id, start, end - start + 1];
     return { success: true, result: await modifySql(sql, sqlParams) };
   } catch (e) {
@@ -192,7 +200,6 @@ module.exports = {
    * 　　  　　message,       // string, 表示返回的消息
    * 　　  } 的 Promise 对象
    */
-  update_post,
 
   /* 作用：查询帖子的基本信息
    * 参数：post_id

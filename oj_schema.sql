@@ -167,7 +167,7 @@ CREATE TABLE `posts`  (
   `post_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '帖子内容',
   `post_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '帖子时间',
   `last_reply_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后回复时间',
-  `reply_number` int NULL DEFAULT 1 COMMENT '楼层数量',
+  `reply_number` int NULL DEFAULT 0 COMMENT '楼层数量',
   PRIMARY KEY (`post_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE,
   INDEX `user_id`(`post_submit_user_id` ASC) USING BTREE

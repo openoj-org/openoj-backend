@@ -101,7 +101,7 @@ async function list(req, res, next) {
         res.json(tmp);
         return;
       }
-      post.username = tmp.result.username;
+      post.username = tmp.username;
       result[i] = post;
     }
     res.json({ success: true, result: result, count: count });
@@ -156,7 +156,7 @@ async function info(req, res, next) {
       res.json(tmp);
       return;
     }
-    post.username = tmp.result.username;
+    post.username = tmp.username;
 
     replies = replies.result;
 
@@ -167,7 +167,7 @@ async function info(req, res, next) {
         res.json(tmp);
         return;
       }
-      reply.username = tmp.result.username;
+      reply.username = tmp.username;
       replies[i] = reply;
     }
 
@@ -196,46 +196,21 @@ async function info(req, res, next) {
   }
 }
 
-function comment(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let { cookie, id, content } = req.body;
-      let user = await cookie_to_user(cookie);
-      if (!user.success) {
-        return user;
-      }
-
-      try {
-        let reply_id = createSessionId();
-        let reply = await insert_reply(
-          reply_id,
-          id,
-          user.id,
-          user.name,
-          content
-        );
-        if (reply.success) {
-          let update = await update_post(id);
-          if (update.success) {
-            return {
-              success: true,
-              message: "跟帖成功",
-            };
-          } else {
-            return update;
-          }
-        } else {
-          return reply;
-        }
-      } catch (e) {
-        return e;
-      }
-    },
-    false
-  );
+async function comment(req, res, next) {
+  try {
+    let { cookie, id, content } = req.body;
+    id = Number(id);
+    let user = await cookie_to_user(cookie);
+    if (!user.success) {
+      res.json(user);
+      return;
+    }
+    const userId = user.id;
+    let reply = await insert_reply(id, userId, content);
+    res.json(reply);
+  } catch (e) {
+    return e;
+  }
 }
 
 async function post(req, res, next) {
@@ -264,7 +239,18 @@ async function post(req, res, next) {
       problem_title = tmp.result.title;
     }
     let ret = await insert_post(title, typ, problem_id, user.id, content);
-    res.json(ret);
+    if (ret.success == false) {
+      res.json(ret);
+      return;
+    }
+    const id = ret.id;
+    const userId = user.id;
+    let reply = await insert_reply(id, userId, content);
+    if (reply.success == false) {
+      res.json(reply);
+      return;
+    }
+    res.json({ success: true, id: id });
   } catch (e) {
     res.json({ success: false, message: "文件操作出错" });
   }
@@ -294,7 +280,6 @@ async function cookie_to_user(cookie) {
 
 function createSessionId() {
   var formatedUUID = uuidv1();
-  console.log(formatedUUID);
   return formatedUUID;
 }
 
