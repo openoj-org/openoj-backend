@@ -83,6 +83,38 @@ END
 -- ----------------------------
 -- Triggers structure for table replies
 -- ----------------------------
+DROP TRIGGER IF EXISTS `insert_evaluation`
+-- separator
+CREATE TRIGGER `insert_evaluation` AFTER INSERT ON `evaluations` FOR EACH ROW BEGIN
+    IF NEW.problem_is_official = 1 THEN
+        IF NEW.evaluation_status = `AC` THEN
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number + 1,
+                problem_pass_number = problem_pass_number + 1
+            WHERE problem_id = NEW.problem_id;
+        ELSE
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number + 1
+            WHERE problem_id = NEW.problem_id;
+        END IF;
+    ELSE
+        IF NEW.evaluation_status = `AC` THEN
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number + 1,
+                problem_pass_number = problem_pass_number + 1
+            WHERE problem_id = NEW.problem_id;
+        ELSE
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number + 1
+            WHERE problem_id = NEW.problem_id;
+        END IF;
+    END IF;
+END
+-- separator
+
+-- ----------------------------
+-- Triggers structure for table replies
+-- ----------------------------
 DROP TRIGGER IF EXISTS `insert_replies`
 -- separator
 CREATE TRIGGER `insert_replies` AFTER INSERT ON `replies` FOR EACH ROW BEGIN

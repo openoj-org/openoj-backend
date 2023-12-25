@@ -4,6 +4,7 @@
  * 最后更新时间: 2023/12/13
  */
 
+const fsExt = require("fs-extra");
 const {
   insert_one_decorator,
   delete_decorator,
@@ -169,6 +170,20 @@ function insert_workshop_data(
 
 // todo: 如果有时间最好删除一下相关的数据文件，没时间就算了
 function delete_data_by_problem_id(problem_id, problem_is_official) {
+  try {
+    fsExt.removeSync(
+      `./static/${
+        problem_is_official ? "official_problem" : "workshop_problem"
+      }/` +
+      id +
+      "/data"
+    );
+  } catch (e) {
+    return {
+      success: false,
+      message: '删除数据文件失败'
+    }
+  }
   let sql =
     "DELETE FROM data WHERE problem_id = ? \
                AND problem_is_official = ?;";
