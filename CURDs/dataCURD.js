@@ -173,9 +173,9 @@ function delete_data_by_problem_id(problem_id, problem_is_official) {
   try {
     fsExt.removeSync(
       `./static/${
-        problem_is_official ? "official_problem" : "workshop_problem"
+        Number(problem_is_official) ? "official_problem" : "workshop_problem"
       }/` +
-      id +
+      problem_id +
       "/data"
     );
   } catch (e) {
