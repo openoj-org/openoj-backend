@@ -124,7 +124,7 @@ async function select_evaluations_by_param_order(
   if (start != null && end != null) {
     limitStr = "LIMIT ?, ?;";
     sqlParams1.push(Number(start));
-    sqlParams1.push(Number(end));
+    sqlParams1.push(Number(end) - Number(start) + 1);
   }
 
   // SQL 查询语句拼接和查询
@@ -629,7 +629,7 @@ function select_evaluations_by_problem_id(problem_id, problem_is_official) {
  * @param {*} evaluation_id
  */
 function delete_data_evaluation_by_evaluation_id(evaluation_id) {
-  let sql = "DELECT FROM data_evaluations WHERE evaluation_id = ?;";
+  let sql = "DELETE FROM data_evaluations WHERE evaluation_id = ?;";
   let sqlParams = [Number(evaluation_id)];
   return delete_decorator(sql, sqlParams, "数据点评测记录");
 }
@@ -642,7 +642,7 @@ function delete_data_evaluation_by_evaluation_id(evaluation_id) {
  * @param {*} evaluation_id
  */
 function delete_subtask_evaluation_by_evaluation_id(evaluation_id) {
-  let sql = "DELECT FROM subtask_evaluations WHERE evaluation_id = ?;";
+  let sql = "DELETE FROM subtask_evaluations WHERE evaluation_id = ?;";
   let sqlParams = [Number(evaluation_id)];
   return delete_decorator(sql, sqlParams, "子任务评测记录");
 }

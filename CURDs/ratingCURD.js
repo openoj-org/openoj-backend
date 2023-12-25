@@ -18,7 +18,7 @@ function select_rating_by_pid_and_uid(
 ) {
   let sql =
     "SELECT rating_value AS rating FROM ratings WHERE \
-               problem_id = ? AND user_id = ? AND problem_is_official;";
+               problem_id = ? AND rating_submit_user_id = ? AND problem_is_official = ?;";
   let sqlParams = [problem_id, user_id, problem_is_official];
   return select_one_decorator(sql, sqlParams, "评分");
 }
@@ -49,7 +49,7 @@ function insert_workshop_rating(problem_id, user_id, rating) {
 
 function delete_rating(problem_id, user_id, problem_is_official) {
   let sql =
-    "DELECT FROM ratings WHERE problem_id \
+    "DELETE FROM ratings WHERE problem_id \
                = ? AND rating_submit_user_id = ? AND problem_is_official = ?;";
   let sqlParams = [problem_id, user_id, problem_is_official ? 1 : 0];
   return delete_decorator(sql, sqlParams, "评分");

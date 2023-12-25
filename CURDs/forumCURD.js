@@ -13,7 +13,68 @@ function update_post() {}
 
 function select_post() {}
 
-function select_post_by_param_order() {}
+async function select_post_by_param_order(
+  order,
+  increase,
+  titleKeyword,
+  authorId,
+  authorKeyword,
+  sourceType,
+  sourceId,
+  sourceKeyword,
+  start,
+  end
+) {
+  try {
+    switch (order) {
+      case "postTime":
+        order = "post_time";
+        break;
+      case "commentTime":
+        order = "last_reply_time";
+        break;
+    }
+    let sql =
+      "SELECT post_id AS id, post_title AS title, post_submit_user_id AS userId, post_time AS time, last_reply_time AS commentTime, post_is_question_discussion AS type, problem_id AS problemId WHERE ";
+    let sqlParams = [];
+    sql += "post_title LIKE ? ";
+    sqlParams.push("%" + titleKeyword + "%");
+    if (authorId != undefined) {
+      sql += "AND post_submit_user_id = ? ";
+      sqlParams.push(authorId);
+    }
+    if (sourceType != undefined) {
+      sql += "AND post_is_question_discussion = ? ";
+      sqlParams.push(sourceType == 0 ? 1 : 2);
+      sql += "AND problem_id = ? ";
+      sqlParams.push(sourceId);
+    }
+    sql += `ORDER BY ${order} ${increase ? "ASC" : "DESC"} `;
+    sql += "LIMIT ?, ?;";
+    sqlParams.push(start);
+    sqlParams.push(end - start + 1);
+    const result = await modifySql(sql, sqlParams);
+    sql = "SELECT COUNT(*) WHERE ";
+    sqlParams = [];
+    sql += "post_title LIKE ? ";
+    sqlParams.push("%" + titleKeyword + "%");
+    if (authorId != undefined) {
+      sql += "AND post_submit_user_id = ? ";
+      sqlParams.push(authorId);
+    }
+    if (sourceType != undefined) {
+      sql += "AND post_is_question_discussion = ? ";
+      sqlParams.push(sourceType == 0 ? 1 : 2);
+      sql += "AND problem_id = ? ";
+      sqlParams.push(sourceId);
+    }
+    sql += `ORDER BY ${order} ${increase ? "ASC" : "DESC"};`;
+    const count = await modifySql(sql, sqlParams)[0]["COUNT(*)"];
+    return { success: true, result: result, count: count };
+  } catch (e) {
+    return { success: false, message: "读取帖子列表时出错" };
+  }
+}
 function insert_reply() {}
 function select_reply_by_param_order() {}
 

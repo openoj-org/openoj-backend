@@ -158,7 +158,7 @@ CREATE TABLE `official_problems`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `posts`;
 CREATE TABLE `posts`  (
-  `post_id` int UNSIGNED NOT NULL COMMENT '帖子 id',
+  `post_id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '帖子 id',
   `post_title` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '帖子标题，长度不超过 50',
   `post_is_announcement` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '帖子是否为公告',
   `post_is_question_discussion` tinyint NULL DEFAULT NULL COMMENT '帖子是否为题目讨论贴，0 不对应题目，1 对应官方题目，2 对应创意工坊题目',
@@ -166,10 +166,12 @@ CREATE TABLE `posts`  (
   `post_submit_user_id` int UNSIGNED NULL DEFAULT NULL COMMENT '楼主 id',
   `post_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '帖子内容',
   `post_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '帖子时间',
+  `last_reply_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后回复时间',
+  `reply_number` int NULL DEFAULT 1 COMMENT '楼层数量',
   PRIMARY KEY (`post_id`) USING BTREE,
   INDEX `question_id`(`problem_id` ASC) USING BTREE,
   INDEX `user_id`(`post_submit_user_id` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for ratings
@@ -207,7 +209,7 @@ CREATE TABLE `replies`  (
   `post_id` int UNSIGNED NOT NULL COMMENT '回复对应帖子的 id',
   `reply_submit_user_id` int UNSIGNED NULL DEFAULT NULL COMMENT '层主 id',
   `reply_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '回复内容',
-  `reply_time` datetime NULL DEFAULT NULL COMMENT '回复时间',
+  `reply_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '回复时间',
   PRIMARY KEY (`reply_id`) USING BTREE,
   INDEX `post_id`(`post_id` ASC) USING BTREE,
   INDEX `user_id`(`reply_submit_user_id` ASC) USING BTREE

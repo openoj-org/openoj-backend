@@ -11,25 +11,28 @@ const {
   insert_workshop_rating,
   insert_official_rating,
 } = require("../CURDs/ratingCURD");
-const { authenticate_cookie } = require("../CURDs/userCURD");
+const {
+  authenticate_cookie,
+  select_user_id_by_cookie,
+} = require("../CURDs/userCURD");
 
 // 获取之前的推荐
 async function get_recommend(req, res, next) {
   // 先根据cookie获取用户id
-  let tmp = await select_user_id_by_cookie(req.body.cookie);
+  let tmp = await select_user_id_by_cookie(req.query.cookie);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
-  const userId = tmp.result.id;
+  const userId = tmp.id;
   // 验证用户是否为受信用户及以上
-  tmp = await authenticate_cookie(req.body.cookie, 2);
+  tmp = await authenticate_cookie(req.query.cookie, 2);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
   // 查找是否推荐过
-  tmp = await select_recommendation_by_pid_and_uid(req.body.id, userId);
+  tmp = await select_recommendation_by_pid_and_uid(req.query.problemId, userId);
   if (tmp.success == false) {
     res.json(tmp);
     return;
@@ -44,31 +47,38 @@ async function get_recommend(req, res, next) {
 // 获取之前的评价
 async function get_evalue(req, res, next) {
   // 先根据cookie获取用户id
-  let tmp = await select_user_id_by_cookie(req.body.cookie);
+  let tmp = await select_user_id_by_cookie(req.query.cookie);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
-  const userId = tmp.result.id;
+  const userId = tmp.id;
   // 验证用户是否为受信用户及以上
-  tmp = await authenticate_cookie(req.body.cookie, 2);
+  tmp = await authenticate_cookie(req.query.cookie, 2);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
   // 查找之前的评分
   tmp =
-    req.body.type == 0
-      ? await select_official_rating_by_pid_and_uid(req.body.problemId, userId)
-      : await select_workshop_rating_by_pid_and_uid(req.body.problemId, userId);
-  const rating = tmp.result.rating;
-  if (rating == null || rating == undefined) {
+    req.query.type == 0
+      ? await select_official_rating_by_pid_and_uid(req.query.problemId, userId)
+      : await select_workshop_rating_by_pid_and_uid(
+          req.query.problemId,
+          userId
+        );
+  if (
+    tmp.result == undefined ||
+    tmp.result.rating == null ||
+    tmp.result.rating == undefined
+  ) {
     res.json({
       success: true,
       Comment: false,
     });
     return;
   }
+  const rating = tmp.result.rating;
   res.json({
     success: true,
     comment: true,
@@ -84,7 +94,7 @@ async function recommend(req, res, next) {
     res.json(tmp);
     return;
   }
-  const userId = tmp.result.id;
+  const userId = tmp.id;
   // 验证用户是否为受信用户及以上
   tmp = await authenticate_cookie(req.body.cookie, 2);
   if (tmp.success == false) {
@@ -143,7 +153,7 @@ async function evalue(req, res, next) {
     res.json(tmp);
     return;
   }
-  const userId = tmp.result.id;
+  const userId = tmp.id;
   // 验证用户是否为受信用户及以上
   tmp = await authenticate_cookie(req.body.cookie, 2);
   if (tmp.success == false) {
