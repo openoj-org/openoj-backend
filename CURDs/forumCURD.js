@@ -1,4 +1,4 @@
-const { select_one_decorator } = require("./decorator");
+const { select_one_decorator, insert_one_decorator } = require("./decorator");
 
 const {
   querySql,
@@ -7,11 +7,27 @@ const {
   toQueryString,
 } = require("../utils/index");
 
-function insert_post() {}
+async function insert_post(title, type, problem_id, user_id, content) {
+  try {
+    let sql =
+      "INSERT INTO posts(post_title, post_is_question_discussion, problem_id, post_submit_user_id, post_text) VALUES(?, ?, ?, ?, ?);";
+    let sqlParams = [title, type, problem_id, user_id, content];
+    return await insert_one_decorator(sql, sqlParams, "帖子");
+  } catch (e) {
+    return { success: false, message: "插入帖子失败" };
+  }
+}
 
 function update_post() {}
 
-function select_post() {}
+async function select_post(id) {
+  let sql =
+    "SELECT post_title AS title, post_submit_user_id AS userId, post_time AS time, last_reply_time AS commentTime, post_is_question_discussion AS type, problem_id AS problemId, reply_number as count FROM posts WHERE post_id = ?;";
+  let sqlParams = [id];
+  const result = await modifySql(sql, sqlParams);
+  if (result.length < 1) return { success: false, message: "帖子不存在" };
+  return { success: true, result: result[0] };
+}
 
 async function select_post_by_param_order(
   order,
@@ -35,7 +51,7 @@ async function select_post_by_param_order(
         break;
     }
     let sql =
-      "SELECT post_id AS id, post_title AS title, post_submit_user_id AS userId, post_time AS time, last_reply_time AS commentTime, post_is_question_discussion AS type, problem_id AS problemId WHERE ";
+      "SELECT post_id AS id, post_title AS title, post_submit_user_id AS userId, post_time AS time, last_reply_time AS commentTime, post_is_question_discussion AS type, problem_id AS problemId, reply_number as count FROM posts WHERE ";
     let sqlParams = [];
     sql += "post_title LIKE ? ";
     sqlParams.push("%" + titleKeyword + "%");
@@ -54,7 +70,7 @@ async function select_post_by_param_order(
     sqlParams.push(start);
     sqlParams.push(end - start + 1);
     const result = await modifySql(sql, sqlParams);
-    sql = "SELECT COUNT(*) WHERE ";
+    sql = "SELECT COUNT(*) FROM posts WHERE ";
     sqlParams = [];
     sql += "post_title LIKE ? ";
     sqlParams.push("%" + titleKeyword + "%");
@@ -76,7 +92,17 @@ async function select_post_by_param_order(
   }
 }
 function insert_reply() {}
-function select_reply_by_param_order() {}
+
+async function select_reply_by_param_order(post_id, start, end) {
+  try {
+    let sql =
+      "SELECT reply_submit_user_id AS userId, reply_text AS content, reply_time AS time FROM replies WHERE post_id = ? LIMIT ?, ?;";
+    let sqlParams = [post_id, start, end - start + 1];
+    return { success: true, result: await modifySql(sql, sqlParams) };
+  } catch (e) {
+    return { success: true, message: "获取回复时出错" };
+  }
+}
 
 /**
  * 根据题目id删除所有相关的评论

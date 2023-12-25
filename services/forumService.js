@@ -1,8 +1,7 @@
 const fs = require("fs");
 const {
   select_official_problem_by_id,
-  select_official_problem_title_by_id,
-  select_workshop_problem_title_by_id,
+  select_workshop_problem_by_id,
 } = require("../CURDs/problemCURD");
 const { select_official_data_by_problem_id } = require("../CURDs/dataCURD");
 const {
@@ -41,7 +40,7 @@ function validateFunction(req, res, next, func, isDefault) {
   }
 }
 
-function list(req, res, next) {
+async function list(req, res, next) {
   try {
     let {
       order,
@@ -64,7 +63,7 @@ function list(req, res, next) {
     else sourceType = undefined;
     start = Number(start);
     end = Number(end);
-    return select_post_by_param_order(
+    let tmp = await select_post_by_param_order(
       order,
       increase,
       titleKeyword,
@@ -76,62 +75,125 @@ function list(req, res, next) {
       start,
       end
     );
+    if (tmp.success == false) {
+      res.json(tmp);
+      return;
+    }
+    const result = tmp.result;
+    const count = tmp.count;
+    for (let i = 0; i < result.length; i++) {
+      const post = result[i];
+      post.withProblem = post.type != 0;
+      if (post.withProblem != false) {
+        post.type = post.type == 1 ? 0 : 1;
+        tmp =
+          post.type == 0
+            ? await select_official_problem_by_id(post.problemId)
+            : await select_workshop_problem_by_id(post.problemId);
+        if (tmp.success == false) {
+          res.json(tmp);
+          return;
+        }
+        post.problemTitle = tmp.result.title;
+      } else delete post.type;
+      tmp = await select_user_by_id(post.userId);
+      if (tmp.success == false) {
+        res.json(tmp);
+        return;
+      }
+      post.username = tmp.result.username;
+      result[i] = post;
+    }
+    res.json({ success: true, result: result, count: count });
   } catch (e) {
-    return { success: false, message: "文件操作出错" };
+    res.json({ success: false, message: "文件操作出错" });
+    return;
   }
 }
 
-function info(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let { id, start, end } = req.body;
-      try {
-        let post = await select_post(id);
-        if (!post.success) {
-          return post;
-        }
+async function info(req, res, next) {
+  try {
+    let { id, start, end } = req.query;
+    id = Number(id);
+    start = Number(start);
+    end = Number(end);
+    let post = await select_post(id);
+    if (!post.success) {
+      res.json(post);
+      return;
+    }
 
-        if (start > end || start < 0) {
-          return {
-            success: false,
-            message: "获取范围出错",
-          };
-        }
-        let replies = await select_reply_by_param_order(id, start, end);
-        if (!replies.success) {
-          return replies;
-        }
+    if (start > end || start < 0) {
+      return {
+        success: false,
+        message: "获取范围出错",
+      };
+    }
 
-        let ret = {
-          success: true,
-          message: "获取成功",
-          title: post.title,
-          userId: post.user_id,
-          username: post.user_name,
-          time: post.time,
-          commentTime: post.comment_time,
-          withProblem: post.type > 0,
-          type: post.type - 1,
-          problemId: post.problem_id,
-          problemTitle: post.problem_title,
-          count: post.count,
-          commentInfo: replies.commentInfo,
-        };
-        if (post.type == 0) {
-          delete ret.type;
-          delete ret.problemId;
-          delete ret.problemTitle;
-        }
-        return ret;
-      } catch (e) {
-        return e;
+    let replies = await select_reply_by_param_order(id, start, end);
+    if (!replies.success) {
+      res.json(replies);
+      return;
+    }
+
+    post = post.result;
+
+    post.withProblem = post.type != 0;
+    if (post.withProblem != false) {
+      post.type = post.type == 1 ? 0 : 1;
+      let tmp =
+        post.type == 0
+          ? await select_official_problem_by_id(post.problemId)
+          : await select_workshop_problem_by_id(post.problemId);
+      if (tmp.success == false) {
+        res.json(tmp);
+        return;
       }
-    },
-    false
-  );
+      post.problemTitle = tmp.result.title;
+    } else delete post.type;
+    let tmp = await select_user_by_id(post.userId);
+    if (tmp.success == false) {
+      res.json(tmp);
+      return;
+    }
+    post.username = tmp.result.username;
+
+    replies = replies.result;
+
+    for (let i = 0; i < replies.length; i++) {
+      const reply = replies[i];
+      let tmp = await select_user_by_id(reply.userId);
+      if (tmp.success == false) {
+        res.json(tmp);
+        return;
+      }
+      reply.username = tmp.result.username;
+      replies[i] = reply;
+    }
+
+    let ret = {
+      success: true,
+      title: post.title,
+      userId: post.userId,
+      username: post.username,
+      time: post.time,
+      commentTime: post.commentTime,
+      withProblem: true,
+      type: post.type ?? 0,
+      problemId: post.problemId ?? 0,
+      problemTitle: post.problemTitle ?? "",
+      count: post.count,
+      commentInfo: replies,
+    };
+    if (post.withProblem == false) {
+      delete ret.type;
+      delete ret.problemId;
+      delete ret.problemTitle;
+    }
+    res.json(ret);
+  } catch (e) {
+    res.json({ success: false, message: "文件操作出错" });
+  }
 }
 
 function comment(req, res, next) {
@@ -176,76 +238,35 @@ function comment(req, res, next) {
   );
 }
 
-function post(req, res, next) {
-  validateFunction(
-    req,
-    res,
-    next,
-    async (req, res, next) => {
-      let { cookie, withProblem, type, problemId, title, content } = req.body;
-      let user = await cookie_to_user(cookie);
-      if (!user.success) {
-        return user;
-      }
-      let post_id = createSessionId();
-      let typ = 0;
-      let problem_id = null;
-      let problem_title = null;
-
-      if (withProblem) {
-        typ = type + 1;
-        problem_id = problemId;
-        problem_title = await problemId_to_name(problemId, type);
-        if (!problem_title.success) {
-          return problem_title;
-        }
-      }
-
-      try {
-        let ret = await insert_post(
-          post_id,
-          title,
-          content,
-          user.id,
-          user.name,
-          typ,
-          problem_id,
-          problem_title.title,
-          0
-        );
-        if (ret.success) {
-          return {
-            success: true,
-            message: "发帖成功",
-            id: post_id,
-          };
-        } else {
-          return ret;
-        }
-      } catch (e) {
-        return e;
-      }
-    },
-    false
-  );
-}
-
-async function problemId_to_name(id, type) {
+async function post(req, res, next) {
   try {
-    if (type == 0) {
-      let problem = await select_official_problem_title_by_id(id);
-      return problem;
-    } else if (type == 1) {
-      let problem = await select_workshop_problem_title_by_id(id);
-      return problem;
-    } else {
-      return {
-        success: false,
-        message: "题目不存在",
-      };
+    let { cookie, withProblem, type, problemId, title, content } = req.body;
+    let user = await cookie_to_user(cookie);
+    if (!user.success) {
+      res.json(user);
+      return;
     }
-  } catch (err) {
-    return err;
+    let typ = 0;
+    let problem_id = null;
+    let problem_title = null;
+
+    if (withProblem) {
+      typ = type + 1;
+      problem_id = problemId;
+      let tmp =
+        type == 0
+          ? await select_official_problem_by_id(problemId)
+          : await select_workshop_problem_by_id(problemId);
+      if (tmp.success == false) {
+        res.json(tmp);
+        return;
+      }
+      problem_title = tmp.result.title;
+    }
+    let ret = await insert_post(title, typ, problem_id, user.id, content);
+    res.json(ret);
+  } catch (e) {
+    res.json({ success: false, message: "文件操作出错" });
   }
 }
 
