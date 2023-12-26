@@ -13,6 +13,7 @@ const {
 } = require("./decorator");
 
 const fsExt = require("fs-extra");
+const { modifySql } = require("../utils");
 
 function select_score_by_pid_and_uid(problem_id, user_id, problem_is_official) {
   let sql =
@@ -30,6 +31,21 @@ function select_workshop_score_by_pid_and_uid(problem_id, user_id) {
   return select_score_by_pid_and_uid(problem_id, user_id, 0);
 }
 
+async function update_evaluation_received_id_by_id(
+  evaluation_id,
+  evaluation_received_id
+) {
+  try {
+    let sql =
+      "UPDATE evaluations SET evaluation_received_id = ? WHERE evaluation_id = ?;";
+    let sqlParams = [evaluation_received_id, evaluation_id];
+    await modifySql(sql, sqlParams);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: "更新评测信息出错" };
+  }
+}
+
 // 根据某一参数排序查询用户列表，返回第 start 至 end 个结果组成的列表
 async function select_evaluations_by_param_order(
   order,
@@ -44,9 +60,8 @@ async function select_evaluations_by_param_order(
   start,
   end
 ) {
-  let mainStr1 =
-    "SELECT e.evaluation_id AS id, \
-  e.problem_is_official AS type, \
+  let mainStr1 = `SELECT e.evaluation_id AS id, \
+  (1 - e.problem_is_official) AS type, \
   e.problem_id AS problemId, \
   p.problem_name AS problemTitle, \
   e.user_id AS userId, \
@@ -54,18 +69,18 @@ async function select_evaluations_by_param_order(
   e.evaluation_language AS language, \
   e.evaluation_submit_time AS time, \
   e.evaluation_status AS status, \
-  e.evalaution_score AS score, \
+  e.evaluation_score AS score, \
   e.evaluation_total_time AS timeCost, \
   e.evaluation_total_memory AS memoryCost \
   FROM evaluations AS e \
-  INNER JOIN problems AS p \
+  INNER JOIN (SELECT problem_id, problem_name FROM official_problems UNION SELECT problem_id, problem_name FROM workshop_problems) AS p \
   ON e.problem_id = p.problem_id \
   INNER JOIN users AS u \
-  ON e.user_id = u.user_id ";
+  ON e.user_id = u.user_id `;
 
   let mainStr2 =
-    "SELECT CONUT(*) AS count FROM evaluations AS e \
-  INNER JOIN problems AS p \
+    "SELECT COUNT(*) AS count FROM evaluations AS e \
+  INNER JOIN (SELECT problem_id, problem_name FROM official_problems UNION SELECT problem_id, problem_name FROM workshop_problems) AS p \
   ON e.problem_id = p.problem_id \
   INNER JOIN users AS u \
   ON e.user_id = u.user_id ";
@@ -81,13 +96,34 @@ async function select_evaluations_by_param_order(
 
   // 依次检查可选参数
   for (const queryObj of [
-    { param: 1 - Number(problemType), query: "e.problem_is_official = ?" },
-    { param: problemId, query: "e.problem_id = ?" },
-    { param: "%" + problemKeyword + "%", query: "p.problem_name LIKE ?" },
-    { param: Number(userId), query: "e.user_id = ?" },
-    { param: "%" + userKeyword + "%", query: "u.user_name LIKE ?" },
-    { param: language, query: "e.evaluation_language = ?" },
-    { param: status, query: "e.evaluation_status = ?" },
+    {
+      param: problemType == undefined ? null : 1 - Number(problemType),
+      query: "e.problem_is_official = ?",
+    },
+    {
+      param: problemId == undefined ? null : problemId,
+      query: "e.problem_id = ?",
+    },
+    {
+      param: problemKeyword == undefined ? null : "%" + problemKeyword + "%",
+      query: "p.problem_name LIKE ?",
+    },
+    {
+      param: userId == undefined ? null : Number(userId),
+      query: "e.user_id = ?",
+    },
+    {
+      param: userKeyword == undefined ? null : "%" + userKeyword + "%",
+      query: "u.user_name LIKE ?",
+    },
+    {
+      param: language == undefined ? null : language,
+      query: "e.evaluation_language = ?",
+    },
+    {
+      param: status == undefined ? null : status,
+      query: "e.evaluation_status = ?",
+    },
   ]) {
     // 若参数存在, 则将查询语句和参数分别加入对应数组中
     if (queryObj.param !== null) {
@@ -115,7 +151,7 @@ async function select_evaluations_by_param_order(
       memoryCost: "ORDER BY e.evaluation_total_memory ",
     }[ord];
     return ret ? ret + (inc ? "ASC " : "DESC ") : "";
-  })(order, increase);
+  })(order, increase == "true");
 
   // 限制范围的字符串
   let limitStr = ";";
@@ -129,12 +165,16 @@ async function select_evaluations_by_param_order(
 
   // SQL 查询语句拼接和查询
   let sql1 = mainStr1 + whereStr + orderStr + limitStr;
-  let evaluations = select_multiple_decorator(sql1, sqlParams1, "评测列表");
+  let evaluations = await select_multiple_decorator(
+    sql1,
+    sqlParams1,
+    "评测列表"
+  );
   if (!evaluations.success) {
     return evaluations;
   }
   let sql2 = mainStr2 + whereStr;
-  let count = select_one_decorator(sql2, sqlParams2, "评测数量");
+  let count = await select_one_decorator(sql2, sqlParams2, "评测数量");
   if (!count.success) {
     return count;
   }
@@ -178,7 +218,11 @@ async function insert_evaluation(
     randomUUID();
   try {
     await fsExt.ensureFile("./static/evaluations/" + sourceFile);
-    await fsExt.writeFile(sourceFile, sourceCode, "utf8");
+    await fsExt.writeFile(
+      "./static/evaluations/" + sourceFile,
+      sourceCode,
+      "utf8"
+    );
     console.log("代码文件创建成功");
   } catch (err) {
     return {
@@ -195,7 +239,7 @@ async function insert_evaluation(
     evaluation_source_filename\
     ) VALUES(?, ?, ?, ?, ?);";
   let sqlParams = [
-    Number(problemType),
+    Number(problemType) == 0 ? 1 : 0,
     problemId,
     Number(userId),
     language,
@@ -356,7 +400,7 @@ function update_subtask_evaluation_result_by_id(
     Number(score),
     Number(timeCost),
     Number(memoryCost),
-    Number(data_evaluation_id),
+    Number(subtask_evaluation_id),
   ];
   return update_decorator(sql, sqlParams, "评测记录");
 }
@@ -382,7 +426,7 @@ function update_subtask_evaluation_result_by_id(
  */
 async function select_evaluation_by_id(evaluation_id) {
   let sql =
-    "SELECT (1 - e.problem_is_official) AS type, " +
+    "SELECT (1 - problem_is_official) AS type, " +
     "problem_id AS problemId, " +
     "user_id AS userId, " +
     "evaluation_language AS language, " +
@@ -390,9 +434,9 @@ async function select_evaluation_by_id(evaluation_id) {
     "evaluation_total_time AS timeCost, " +
     "evaluation_total_memory AS memoryCost, " +
     "evaluation_submit_time AS time, " +
-    "eavluation_status AS status, " +
+    "evaluation_status AS status, " +
     "evaluation_score AS score " +
-    "WHERE evaluation_id = ?;";
+    "FROM evaluations WHERE evaluation_id = ?;";
   let sqlParams = [evaluation_id];
   let evalaution_info = await select_one_decorator(sql, sqlParams, "评测记录");
   if (!evalaution_info.success) {
@@ -405,6 +449,8 @@ async function select_evaluation_by_id(evaluation_id) {
       "./static/evaluations/" + evalaution_info.result.sourceFile,
       "utf8"
     );
+    console.log("./static/evaluations/" + evalaution_info.result.sourceFile);
+    console.log(evalaution_info.result.sourceCode);
   } catch (e) {
     return {
       success: false,
@@ -441,7 +487,7 @@ function select_subtask_evaluation_by_id(subtask_evaluation_id) {
     "subtask_evaluation_score AS score, " +
     "subtask_evaluation_time AS timeCost, " +
     "subtask_evaluation_memory AS memoryCost " +
-    "WHERE subtask_evaluation_id = ?;";
+    "FROM subtask_evaluations WHERE subtask_evaluation_id = ?;";
   let sqlParams = [subtask_evaluation_id];
   return select_one_decorator(sql, sqlParams, "子任务评测记录");
 }
@@ -467,7 +513,7 @@ function select_data_evaluation_by_id(data_evaluation_id) {
     "data_evaluation_score AS score, " +
     "data_evaluation_time AS timeCost, " +
     "data_evaluation_memory AS memoryCost " +
-    "WHERE data_evaluation_id = ?;";
+    "FROM data_evaluations WHERE data_evaluation_id = ?;";
   let sqlParams = [data_evaluation_id];
   return select_one_decorator(sql, sqlParams, "数据点评测记录");
 }
@@ -484,7 +530,7 @@ function select_data_evaluation_by_id(data_evaluation_id) {
 function select_evaluation_received_id_by_id(evaluation_id) {
   let sql =
     "SELECT evaluation_received_id AS received_id " +
-    "FROM data_evaluations " +
+    "FROM evaluations " +
     "WHERE evaluation_id = ?;";
   let sqlParams = [evaluation_id];
   return select_one_decorator(sql, sqlParams, "评测机方评测记录");
@@ -547,7 +593,7 @@ async function select_subtask_evaluation_by_evaluation_id(evaluation_id) {
     "subtask_evaluation_score AS score, " +
     "subtask_evaluation_time AS timeCost, " +
     "subtask_evaluation_memory AS memoryCost " +
-    "WHERE evaluation_id = ?;";
+    "FROM subtask_evaluations WHERE evaluation_id = ?;";
   let sqlParams = [Number(evaluation_id)];
   let selected = select_multiple_decorator(sql, sqlParams, "数据点评测记录");
   if (selected.success) {
@@ -583,20 +629,20 @@ async function select_data_evaluation_by_subtask_evaluation_id(
     "data_evaluation_score AS score, " +
     "data_evaluation_time AS timeCost, " +
     "data_evaluation_memory AS memoryCost " +
-    "WHERE subtask_evaluation_id = ?;";
+    "FROM data_evaluations WHERE subtask_evaluation_id = ?;";
   let sqlParams = [Number(subtask_evaluation_id)];
   let selected = await select_multiple_decorator(
     sql,
     sqlParams,
     "数据点评测记录"
   );
-  if (selected.success) {
-    selected.result.forEach((obj) => {
-      if (obj.status == null) {
-        obj.score = obj.timeCost = obj.memoryCost = null;
-      }
-    });
-  }
+  // if (selected.success) {
+  //   selected.result.forEach((obj) => {
+  //     if (obj.status == null) {
+  //       obj.score = obj.timeCost = obj.memoryCost = null;
+  //     }
+  //   });
+  // }
   return selected;
 }
 
@@ -769,4 +815,6 @@ module.exports = {
   delete_data_evaluation_by_evaluation_id,
 
   delete_subtask_evaluation_by_evaluation_id,
+
+  update_evaluation_received_id_by_id,
 };

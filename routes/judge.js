@@ -11,6 +11,6 @@ router.get("/judge/info-subtask", service.info_subtask);
 
 router.get("/judge/info", service.info);
 
-router.get("/judge/submit", service.submit);
+router.post("/judge/submit", service.submit);
 
 module.exports = router;

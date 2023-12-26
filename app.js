@@ -91,7 +91,7 @@ app.listen(8088, async () => {
     // 初始化全局设置
     try {
       let settings = await querySql(
-        "INSERT INTO GLOBAL_SETTINGS(allow_register, have_list) VALUES(1, 0)"
+        "INSERT INTO global_settings(allow_register, have_list) VALUES(1, 0)"
       );
       if (settings.affectedRows == 0) {
         console.log("初始化全局设置失败");

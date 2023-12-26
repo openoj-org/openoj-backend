@@ -26,17 +26,20 @@ const {
   select_evaluations_by_param_order,
   select_subtask_evaluation_by_id,
   select_data_evaluation_by_id,
+  update_evaluation_received_id_by_id,
 } = require("../CURDs/evaluationCURD");
 const {
   select_user_id_by_cookie,
   select_user_by_id,
 } = require("../CURDs/userCURD");
+const { select_subtask_by_problem_id } = require("../CURDs/subtaskCURD");
 
 const judgeUrl = require("../utils/constant").JUDGE_URL;
 
 // 与评测机交互，刷新evaluationId对应的评测的结果
 // 返回结果为对象，success属性表示是否成功，不成功则message属性表示原因
 async function flush_evaluation(evaluationId) {
+  evaluationId = Number(evaluationId);
   // 获取评测的目前状态
   let tmp = await select_evaluation_by_id(evaluationId);
   if (tmp.success == false) {
@@ -61,7 +64,11 @@ async function flush_evaluation(evaluationId) {
   const { isSubtaskUsed } = tmp.result;
   // 从评测机处查询结果
   const response = await axios.get(`${judgeUrl}/get_result/${id}`);
-  if (response.ok == false) {
+
+  let allResult = "AC";
+  let allTime = 0;
+  let allMemory = 0;
+  if (response.data.ok == false) {
     //还没评测完，则不进行任何改动
     return { success: true };
   } else {
@@ -74,10 +81,6 @@ async function flush_evaluation(evaluationId) {
         return tmp;
       }
       const dataInfo = tmp.result;
-
-      let allResult = "AC";
-      let allTime = 0;
-      let allMemory = 0;
 
       // 逐一保存每个数据点的评测信息
       for (let i = 0; i < dataInfo.length; i++) {
@@ -92,14 +95,14 @@ async function flush_evaluation(evaluationId) {
         }
         // 更新整体的时间和空间
         allTime += response.data[i.toString()].time_usage;
-        allMemory += response.data[i.toString()].memory_usage;
+        allMemory += response.data[i.toString()].memory_usage / 1024;
         // 更新一条新的数据点评测结果
         tmp = await update_data_evaluation_result_by_id(
           info.id,
           status,
           response.data[i.toString()].score,
           response.data[i.toString()].time_usage,
-          response.data[i.toString()].memory_usage
+          response.data[i.toString()].memory_usage / 1024
         );
         if (tmp.success == false) {
           return tmp;
@@ -123,10 +126,6 @@ async function flush_evaluation(evaluationId) {
       if (tmp.success == false) {
         return tmp;
       }
-
-      let allResult = "AC";
-      let allTime = 0;
-      let allMemory = 0;
 
       const subtasks = tmp.result;
       for (let i = 0; i < subtasks.length; i++) {
@@ -157,14 +156,14 @@ async function flush_evaluation(evaluationId) {
           //更新子任务的时间和空间
           subtaskTime += response.data[i.toString()][j.toString()].time_usage;
           subtaskMemory +=
-            response.data[i.toString()][j.toString()].memory_usage;
+            response.data[i.toString()][j.toString()].memory_usage / 1024;
           // 更新一条新的数据点评测结果
           tmp = await update_data_evaluation_result_by_id(
             info.id,
             status,
             response.data[i.toString()][j.toString()].score,
             response.data[i.toString()][j.toString()].time_usage,
-            response.data[i.toString()][j.toString()].memory_usage
+            response.data[i.toString()][j.toString()].memory_usage / 1024
           );
           if (tmp.success == false) {
             return tmp;
@@ -210,17 +209,17 @@ async function flush_evaluation(evaluationId) {
 async function list(req, res, next) {
   // 先获取一遍评测列表
   let tmp = await select_evaluations_by_param_order(
-    req.body.order,
-    req.body.increase,
-    req.body.problemType,
-    req.body.problemId,
-    req.body.problemKeyword,
-    req.body.userId,
-    req.body.userKeyword,
-    req.body.language,
-    req.body.status,
-    req.body.start,
-    req.body.end
+    req.query.order,
+    req.query.increase,
+    req.query.problemType,
+    req.query.problemId,
+    req.query.problemKeyword,
+    req.query.userId,
+    req.query.userKeyword,
+    req.query.language,
+    req.query.status,
+    req.query.start,
+    req.query.end
   );
   if (tmp.success == false) {
     res.json(tmp);
@@ -235,18 +234,22 @@ async function list(req, res, next) {
   }
   // 再获取一遍评测列表
   tmp = await select_evaluations_by_param_order(
-    req.body.order,
-    req.body.increase,
-    req.body.problemType,
-    req.body.problemId,
-    req.body.problemKeyword,
-    req.body.userId,
-    req.body.userKeyword,
-    req.body.language,
-    req.body.status,
-    req.body.start,
-    req.body.end
+    req.query.order,
+    req.query.increase,
+    req.query.problemType,
+    req.query.problemId,
+    req.query.problemKeyword,
+    req.query.userId,
+    req.query.userKeyword,
+    req.query.language,
+    req.query.status,
+    req.query.start,
+    req.query.end
   );
+
+  for (let i = 0; i < tmp.result.length; i++) {
+    if (tmp.result[i].status == null) tmp.result[i].status = "Judging";
+  }
   res.json(tmp);
   return;
 }
@@ -254,33 +257,18 @@ async function list(req, res, next) {
 // 获取评测信息
 async function info(req, res, next) {
   // 先尝试刷新结果
-  flush_evaluation(req.body.id);
+  let tmp = await flush_evaluation(req.query.id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
   // 获取评测信息
-  let tmp = await select_evaluation_by_id(req.body.id);
+  tmp = await select_evaluation_by_id(req.query.id);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
   const submissionInfo = tmp.result;
-  // 如果还没评测完
-  if (submissionInfo.status == null || submissionInfo.status == undefined) {
-    res.json({
-      success: true,
-      type: submissionInfo.type,
-      problemId: submissionInfo.problemId,
-      problemTitle: problemTitle,
-      userId: submissionInfo.userId,
-      username: username,
-      language: submissionInfo.language,
-      time: submissionInfo.time,
-      status: "Judging",
-      score: 0,
-      timeCost: 0,
-      memoryCost: 0,
-      subtask: false,
-      dataInfo: [],
-    });
-  }
   // 获取题目名称
   tmp =
     submissionInfo.type == 0
@@ -299,6 +287,27 @@ async function info(req, res, next) {
   }
   // todo: 有时候结果全部包含在result中，有时候结果直接在第一层
   const username = tmp.username;
+  // 如果还没评测完
+  if (submissionInfo.status == null || submissionInfo.status == undefined) {
+    res.json({
+      success: true,
+      type: submissionInfo.type,
+      problemId: submissionInfo.problemId,
+      problemTitle: problemTitle,
+      userId: submissionInfo.userId,
+      username: username,
+      language: submissionInfo.language,
+      time: submissionInfo.time,
+      status: "Judging",
+      score: 0,
+      timeCost: 0,
+      memoryCost: 0,
+      sourceCode: submissionInfo.sourceCode,
+      subtask: false,
+      dataInfo: [],
+    });
+    return;
+  }
   // 获取题目是否有子任务
   tmp = await select_evaluation_configs_by_id(
     submissionInfo.problemId,
@@ -311,7 +320,7 @@ async function info(req, res, next) {
   const { isSubtaskUsed } = tmp.result;
   if (!isSubtaskUsed) {
     // 如果没有采用子任务
-    tmp = await select_data_evaluation_by_evaluation_id(req.body.id);
+    tmp = await select_data_evaluation_by_evaluation_id(req.query.id);
     if (tmp.success == false) {
       res.json(tmp);
       return;
@@ -330,13 +339,14 @@ async function info(req, res, next) {
       score: submissionInfo.score,
       timeCost: submissionInfo.timeCost,
       memoryCost: submissionInfo.memoryCost,
+      sourceCode: submissionInfo.sourceCode,
       subtask: false,
       dataInfo: dataInfo,
     });
     return;
   } else {
     // 如果采用了子任务
-    tmp = await select_subtask_evaluation_by_evaluation_id(req.body.id);
+    tmp = await select_subtask_evaluation_by_evaluation_id(req.query.id);
     if (tmp.success == false) {
       res.json(tmp);
       return;
@@ -355,6 +365,7 @@ async function info(req, res, next) {
       score: submissionInfo.score,
       timeCost: submissionInfo.timeCost,
       memoryCost: submissionInfo.memoryCost,
+      sourceCode: submissionInfo.sourceCode,
       subtask: true,
       subtaskInfo: subtaskInfo,
     });
@@ -364,13 +375,13 @@ async function info(req, res, next) {
 
 // 获取子任务评测信息
 async function info_subtask(req, res, next) {
-  let tmp = await select_subtask_evaluation_by_id(req.body.id);
+  let tmp = await select_subtask_evaluation_by_id(req.query.id);
   if (tmp.success == false) {
     res.json(tmp);
     return;
   }
   const subtaskInfo = tmp.result;
-  tmp = await select_data_evaluation_by_subtask_evaluation_id(req.body.id);
+  tmp = await select_data_evaluation_by_subtask_evaluation_id(req.query.id);
   if (tmp.success == false) {
     res.json(tmp);
     return;
@@ -391,7 +402,7 @@ const CONTENT_LENGTH = 100;
 
 // 获取单条数据评测信息
 async function info_data(req, res, next) {
-  let tmp = await select_data_evaluation_by_id(req.body.id);
+  let tmp = await select_data_evaluation_by_id(Number(req.query.id));
   if (tmp.success == false) {
     res.json(tmp);
     return;
@@ -404,10 +415,10 @@ async function info_data(req, res, next) {
     return;
   }
   const { input_filename, output_filename } = tmp.result;
-  let inputPart = fs.readFileSync(input_filename);
+  let inputPart = fs.readFileSync(input_filename).toString();
   if (inputPart.length > CONTENT_LENGTH)
     inputPart = inputPart.substring(0, CONTENT_LENGTH) + "...";
-  let answerPart = fs.readFileSync(output_filename);
+  let answerPart = fs.readFileSync(output_filename).toString();
   if (answerPart.length > CONTENT_LENGTH)
     answerPart = answerPart.substring(0, CONTENT_LENGTH) + "...";
   res.json({
@@ -431,7 +442,7 @@ async function submit(req, res, next) {
     res.json(tmp);
     return;
   }
-  const userId = tmp.result.id;
+  const userId = tmp.id;
   // 保存一条评测记录
   tmp = await insert_evaluation(
     req.body.type,
@@ -444,7 +455,7 @@ async function submit(req, res, next) {
     res.json(tmp);
     return;
   }
-  const evaluationId = tmp.result.id;
+  const evaluationId = tmp.id;
   // 获取题目的时间和空间限制
   tmp =
     req.body.type == 0
@@ -518,7 +529,6 @@ async function submit(req, res, next) {
       let subtask = subtasks[i];
       const subtaskInputs = [],
         subtaskOutputs = [],
-        subtaskScores = [],
         subtaskTime = [],
         subtaskMemory = [];
       tmp = await insert_subtask_evaluation(subtask.id, evaluationId);
@@ -526,7 +536,7 @@ async function submit(req, res, next) {
         res.json(tmp);
         return;
       }
-      const subtaskEvaluationId = tmp.result.id;
+      const subtaskEvaluationId = tmp.id;
 
       tmp = await select_data_by_subtask_id(subtask.id);
       if (tmp.success == false) {
@@ -554,19 +564,18 @@ async function submit(req, res, next) {
         subtaskOutputs.push(
           Buffer.from(fs.readFileSync(info.output_filename)).toString("base64")
         );
-        subtaskScores.push(info.score);
         subtaskTime.push(timeLimit);
         subtaskMemory.push(memoryLimit);
       }
 
       inputs.push(subtaskInputs);
       outputs.push(subtaskOutputs);
-      scores.push(subtaskScores);
+      scores.push(subtask.score);
       time.push(subtaskTime);
       memory.push(subtaskMemory);
     }
   }
-  const spjCode = "";
+  let spjCode = "";
   if (isSPJUsed) {
     spjCode = Buffer.from(fs.readFileSync(SPJFilename)).toString("base64");
   }
@@ -574,10 +583,10 @@ async function submit(req, res, next) {
     language: req.body.language,
     src: Buffer.from(req.body.sourceCode).toString("base64"),
     test_case_input: inputs,
-    test_case_out: outputs,
+    test_case_output: outputs,
     test_case_score: scores,
-    max_time: time,
-    max_memory: memory,
+    max_time: timeLimit,
+    max_memory: memoryLimit * 1024,
     use_spj: isSPJUsed,
     spj_language: "C++",
     spj_src: spjCode,
@@ -586,9 +595,15 @@ async function submit(req, res, next) {
   const response = await axios.post(`${judgeUrl}/submit_code`, query);
   const id = response.data.id;
 
+  tmp = await update_evaluation_received_id_by_id(evaluationId, id);
+  if (tmp.success == false) {
+    res.json(tmp);
+    return;
+  }
+
   res.json({
     success: true,
-    id: id,
+    id: evaluationId,
   });
 }
 

@@ -87,7 +87,7 @@ DROP TRIGGER IF EXISTS `insert_evaluation`
 -- separator
 CREATE TRIGGER `insert_evaluation` AFTER INSERT ON `evaluations` FOR EACH ROW BEGIN
     IF NEW.problem_is_official = 1 THEN
-        IF NEW.evaluation_status = `AC` THEN
+        IF NEW.evaluation_status = 'AC' THEN
             UPDATE official_problems
             SET problem_submit_number = problem_submit_number + 1,
                 problem_pass_number = problem_pass_number + 1
@@ -98,7 +98,7 @@ CREATE TRIGGER `insert_evaluation` AFTER INSERT ON `evaluations` FOR EACH ROW BE
             WHERE problem_id = NEW.problem_id;
         END IF;
     ELSE
-        IF NEW.evaluation_status = `AC` THEN
+        IF NEW.evaluation_status = 'AC' THEN
             UPDATE workshop_problems
             SET problem_submit_number = problem_submit_number + 1,
                 problem_pass_number = problem_pass_number + 1
@@ -107,6 +107,84 @@ CREATE TRIGGER `insert_evaluation` AFTER INSERT ON `evaluations` FOR EACH ROW BE
             UPDATE workshop_problems
             SET problem_submit_number = problem_submit_number + 1
             WHERE problem_id = NEW.problem_id;
+        END IF;
+    END IF;
+END
+-- separator
+
+DROP TRIGGER IF EXISTS `update_evaluation`
+-- separator
+CREATE TRIGGER `update_evaluation` AFTER UPDATE ON `evaluations` FOR EACH ROW BEGIN
+    IF NEW.problem_is_official = 1 THEN
+        IF OLD.evaluation_status = 'AC' THEN
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number - 1,
+                problem_pass_number = problem_pass_number - 1
+            WHERE problem_id = OLD.problem_id;
+        ELSE
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number - 1
+            WHERE problem_id = OLD.problem_id;
+        END IF;
+        IF NEW.evaluation_status = 'AC' THEN
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number + 1,
+                problem_pass_number = problem_pass_number + 1
+            WHERE problem_id = NEW.problem_id;
+        ELSE
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number + 1
+            WHERE problem_id = NEW.problem_id;
+        END IF;
+    ELSE
+        IF OLD.evaluation_status = 'AC' THEN
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number - 1,
+                problem_pass_number = problem_pass_number - 1
+            WHERE problem_id = OLD.problem_id;
+        ELSE
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number - 1
+            WHERE problem_id = OLD.problem_id;
+        END IF;
+        IF NEW.evaluation_status = 'AC' THEN
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number + 1,
+                problem_pass_number = problem_pass_number + 1
+            WHERE problem_id = NEW.problem_id;
+        ELSE
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number + 1
+            WHERE problem_id = NEW.problem_id;
+        END IF;
+    END IF;
+END
+-- separator
+
+DROP TRIGGER IF EXISTS `delete_evaluation`
+-- separator
+CREATE TRIGGER `delete_evaluation` AFTER DELETE ON `evaluations` FOR EACH ROW BEGIN
+    IF OLD.problem_is_official = 1 THEN
+        IF OLD.evaluation_status = 'AC' THEN
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number - 1,
+                problem_pass_number = problem_pass_number - 1
+            WHERE problem_id = OLD.problem_id;
+        ELSE
+            UPDATE official_problems
+            SET problem_submit_number = problem_submit_number - 1
+            WHERE problem_id = OLD.problem_id;
+        END IF;
+    ELSE
+        IF OLD.evaluation_status = 'AC' THEN
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number - 1,
+                problem_pass_number = problem_pass_number - 1
+            WHERE problem_id = OLD.problem_id;
+        ELSE
+            UPDATE workshop_problems
+            SET problem_submit_number = problem_submit_number - 1
+            WHERE problem_id = OLD.problem_id;
         END IF;
     END IF;
 END
