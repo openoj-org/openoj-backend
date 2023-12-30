@@ -17,7 +17,7 @@ const fs = require("fs");
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(cookieParser("signText"));
 app.use("/", routes);
 app.use("/static", express.static(__dirname + "/static"));
