@@ -526,7 +526,7 @@ async function problem_list(req, res, next) {
             cookie_verified.id
           );
           problem.score = highest_score.success
-            ? highest_score.score
+            ? highest_score.result.score
             : undefined;
         } else {
           {
@@ -601,7 +601,9 @@ async function problem_info(req, res, next) {
           id,
           cookie_verified.id
         );
-        problem_info.score = highest_score.success ? highest_score.score : 0;
+        problem_info.score = highest_score.success
+          ? highest_score.result.score
+          : 0;
       } else {
         res.json(cookie_verified);
         return;
